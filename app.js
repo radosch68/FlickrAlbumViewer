@@ -1,4 +1,17 @@
 const config = window.APP_CONFIG || {};
+const PHOTO_URL_EXTRAS = [
+  "url_q",
+  "url_t",
+  "url_s",
+  "url_m",
+  "url_n",
+  "url_z",
+  "url_c",
+  "url_l",
+  "url_h",
+  "url_k",
+  "url_o",
+];
 
 const appState = {
   photos: [],
@@ -185,9 +198,9 @@ function pickBestUrl(photo, preferredKeys) {
 }
 
 function mapPhoto(photo, ownerNsid) {
-  const thumbUrl = pickBestUrl(photo, ["url_q", "url_t", "url_s", "url_m"]);
-  const displayUrl = pickBestUrl(photo, ["url_l", "url_z", "url_c", "url_m", "url_n", "url_q"]);
-  const fullUrl = pickBestUrl(photo, ["url_o", "url_l", "url_z", "url_c", "url_m"]);
+  const thumbUrl = pickBestUrl(photo, ["url_z", "url_n", "url_m", "url_q", "url_s", "url_t"]);
+  const displayUrl = pickBestUrl(photo, ["url_k", "url_h", "url_o", "url_l", "url_c", "url_z", "url_n", "url_m", "url_q"]);
+  const fullUrl = pickBestUrl(photo, ["url_o", "url_k", "url_h", "url_l", "url_c", "url_z", "url_n", "url_m"]);
 
   return {
     id: photo.id,
@@ -203,7 +216,7 @@ async function fetchAlbumPhotos(photosetId) {
   const payload = await callFlickrApi("flickr.photosets.getPhotos", {
     user_id: config.userId,
     photoset_id: photosetId,
-    extras: ["url_q", "url_t", "url_s", "url_m", "url_n", "url_c", "url_z", "url_l", "url_o"].join(","),
+    extras: PHOTO_URL_EXTRAS.join(","),
   });
 
   if (!payload.photoset || !Array.isArray(payload.photoset.photo)) {
