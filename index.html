@@ -3,13 +3,51 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hello World</title>
+    <title>Flickr Album Viewer</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="container">
-      <h1>Hello, World!</h1>
-      <p>Your GitHub Pages site is live 🎉</p>
+    <main class="app-shell">
+      <header class="top-bar">
+        <h1 id="album-title">Album Viewer</h1>
+        <p id="photo-count">Loading photos...</p>
+      </header>
+
+      <section id="loading-state" class="state-card" aria-live="polite">
+        <p>Loading album photos...</p>
+      </section>
+
+      <section id="error-state" class="state-card hidden" aria-live="assertive">
+        <h2>Couldn’t load this album</h2>
+        <p id="error-message">Please try again.</p>
+        <button id="retry-button" class="btn" type="button">Retry</button>
+      </section>
+
+      <section id="empty-state" class="state-card hidden" aria-live="polite">
+        <h2>No photos found</h2>
+        <p>This album does not have any publicly available photos.</p>
+      </section>
+
+      <section id="gallery-grid" class="gallery-grid hidden" aria-label="Album photos"></section>
     </main>
+
+    <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Photo viewer">
+      <button id="close-lightbox" class="icon-btn close-btn" type="button" aria-label="Close photo viewer">✕</button>
+
+      <button id="prev-photo" class="icon-btn nav-btn prev-btn" type="button" aria-label="Previous photo">‹</button>
+      <img id="lightbox-image" src="" alt="" />
+      <button id="next-photo" class="icon-btn nav-btn next-btn" type="button" aria-label="Next photo">›</button>
+
+      <div class="lightbox-meta">
+        <p id="lightbox-caption"></p>
+        <div class="lightbox-actions">
+          <span id="lightbox-counter"></span>
+          <a id="lightbox-flickr-link" target="_blank" rel="noopener noreferrer">Open on Flickr</a>
+        </div>
+      </div>
+    </div>
+
+    <script src="app-config.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>
