@@ -1,4 +1,5 @@
 const config = window.APP_CONFIG || {};
+const JS_VERSION = "2026.03.03.1";
 const PHOTO_URL_EXTRAS = [
   "url_q",
   "url_t",
@@ -36,11 +37,25 @@ const elements = {
   prevPhoto: document.getElementById("prev-photo"),
   nextPhoto: document.getElementById("next-photo"),
   flickrLink: document.getElementById("lightbox-flickr-link"),
+  appVersion: document.getElementById("app-version"),
 };
 
 let touchStartX = null;
 let previouslyFocusedElement = null;
 let eventsBound = false;
+
+function renderLoadedVersion() {
+  const htmlVersion =
+    document.querySelector('meta[name="app-html-version"]')?.getAttribute("content") || "unknown";
+  const label = `Loaded HTML ${htmlVersion} · JS ${JS_VERSION}`;
+
+  if (elements.appVersion) {
+    elements.appVersion.textContent = label;
+  }
+
+  window.APP_RUNTIME_VERSION = { html: htmlVersion, js: JS_VERSION };
+  console.info("[FlickrAlbumViewer]", window.APP_RUNTIME_VERSION);
+}
 
 function validateConfig() {
   const requiredKeys = ["flickrApiKey", "userId"];
@@ -355,6 +370,8 @@ function handleTouchEnd(event) {
 }
 
 async function initializeApp() {
+  renderLoadedVersion();
+
   if (!eventsBound) {
     elements.retryButton.addEventListener("click", initializeApp);
     elements.closeLightbox.addEventListener("click", closeLightbox);

@@ -69,6 +69,12 @@ body {
   gap: 0.5rem;
 }
 
+.version-badge {
+  margin: 0.9rem 0 0;
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
 .photo-tile {
   border: none;
   padding: 0;

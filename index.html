@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="app-html-version" content="2026.03.03.1" />
     <title>Flickr Album Viewer</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -29,6 +30,8 @@
       </section>
 
       <section id="gallery-grid" class="gallery-grid hidden" aria-label="Album photos"></section>
+
+      <p id="app-version" class="version-badge" aria-live="polite"></p>
     </main>
 
     <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Photo viewer">
@@ -47,7 +50,7 @@
       </div>
     </div>
 
-    <script src="app-config.js"></script>
-    <script src="app.js"></script>
+    <script src="app-config.js?v=2026.03.03.1"></script>
+    <script src="app.js?v=2026.03.03.1"></script>
   </body>
 </html>
