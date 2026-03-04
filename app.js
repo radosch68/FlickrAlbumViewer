@@ -1,7 +1,6 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.04.5";
+const JS_VERSION = "2026.03.04.6";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
-const FIT_MODE_STORAGE_KEY = "flickrPreviewFitMode";
 const DOUBLE_TAP_MS = 420;
 const DOUBLE_TAP_MOVE_PX = 40;
 const MIN_STRIP_SIZE = 92;
@@ -24,21 +23,19 @@ const appState = {
   photos: [],
   albumTitle: "",
   selectedIndex: 0,
-  fitMode: "height",
 };
 
 const elements = {
   appShell: document.querySelector(".app-shell"),
   albumTitle: document.getElementById("album-title"),
   photoCount: document.getElementById("photo-count"),
-  stripSize: document.getElementById("strip-size"),
-  fitModeToggle: document.getElementById("fit-mode-toggle"),
   loadingState: document.getElementById("loading-state"),
   errorState: document.getElementById("error-state"),
   errorMessage: document.getElementById("error-message"),
   retryButton: document.getElementById("retry-button"),
   emptyState: document.getElementById("empty-state"),
   theatreView: document.getElementById("theatre-view"),
+  filmstripResizer: document.getElementById("filmstrip-resizer"),
   previewPane: document.getElementById("preview-pane"),
   previewMedia: document.querySelector(".preview-media"),
   previewFullscreenToggle: document.getElementById("preview-fullscreen-toggle"),
@@ -58,6 +55,7 @@ let lastTapTime = 0;
 let lastTapX = null;
 let lastTapY = null;
 let pseudoFullscreenActive = false;
+let stripResizeActive = false;
 let eventsBound = false;
 
 function renderLoadedVersion() {
@@ -257,10 +255,6 @@ function applyStripSize(size, persist = true) {
     elements.appShell.style.setProperty("--filmstrip-size", `${normalized}px`);
   }
 
-  if (elements.stripSize) {
-    elements.stripSize.value = String(normalized);
-  }
-
   if (persist) {
     localStorage.setItem(STRIP_SIZE_STORAGE_KEY, String(normalized));
   }
@@ -273,41 +267,66 @@ function initializeStripSize() {
     return;
   }
 
-  if (elements.stripSize) {
-    applyStripSize(elements.stripSize.value, false);
-  }
+  applyStripSize(132, false);
 }
 
-function normalizeFitMode(value) {
-  return value === "width" ? "width" : "height";
+function isLandscapeOrientation() {
+  return window.matchMedia("(orientation: landscape)").matches;
 }
 
-function applyFitMode(mode, persist = true) {
-  const normalized = normalizeFitMode(mode);
-  appState.fitMode = normalized;
-
-  elements.previewPane.classList.toggle("fit-width", normalized === "width");
-  elements.previewPane.classList.toggle("fit-height", normalized === "height");
-
-  if (elements.fitModeToggle) {
-    const label = normalized === "height" ? "Fit: Height" : "Fit: Width";
-    elements.fitModeToggle.textContent = label;
-    elements.fitModeToggle.setAttribute("aria-label", `${label}. Tap to toggle.`);
+function updateResizerOrientation() {
+  if (!elements.filmstripResizer) {
+    return;
   }
 
-  if (persist) {
-    localStorage.setItem(FIT_MODE_STORAGE_KEY, normalized);
+  elements.filmstripResizer.setAttribute(
+    "aria-orientation",
+    isLandscapeOrientation() ? "vertical" : "horizontal"
+  );
+}
+
+function updateStripSizeFromPointer(clientX, clientY) {
+  const bounds = elements.theatreView.getBoundingClientRect();
+  const rawSize = isLandscapeOrientation() ? bounds.right - clientX : bounds.bottom - clientY;
+  applyStripSize(rawSize);
+}
+
+function handleResizerPointerDown(event) {
+  if (event.button !== 0) {
+    return;
   }
+
+  stripResizeActive = true;
+  elements.filmstripResizer.classList.add("is-active");
+  if (typeof elements.filmstripResizer.setPointerCapture === "function") {
+    elements.filmstripResizer.setPointerCapture(event.pointerId);
+  }
+  updateStripSizeFromPointer(event.clientX, event.clientY);
+  event.preventDefault();
 }
 
-function initializeFitMode() {
-  const saved = localStorage.getItem(FIT_MODE_STORAGE_KEY);
-  applyFitMode(saved || "height", false);
+function handleResizerPointerMove(event) {
+  if (!stripResizeActive) {
+    return;
+  }
+
+  updateStripSizeFromPointer(event.clientX, event.clientY);
 }
 
-function toggleFitMode() {
-  const nextMode = appState.fitMode === "height" ? "width" : "height";
-  applyFitMode(nextMode);
+function stopResizerInteraction(event) {
+  if (!stripResizeActive) {
+    return;
+  }
+
+  stripResizeActive = false;
+  elements.filmstripResizer.classList.remove("is-active");
+  if (event && typeof elements.filmstripResizer.releasePointerCapture === "function") {
+    try {
+      elements.filmstripResizer.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer may already be released.
+    }
+  }
 }
 
 async function fetchAlbumPhotos(photosetId) {
@@ -538,13 +557,13 @@ async function initializeApp() {
     elements.retryButton.addEventListener("click", initializeApp);
     elements.nextPhoto.addEventListener("click", showNext);
     elements.prevPhoto.addEventListener("click", showPrev);
-    elements.fitModeToggle.addEventListener("click", toggleFitMode);
     elements.previewFullscreenToggle.addEventListener("click", () => {
       void toggleFullscreenPreview();
     });
-    elements.stripSize.addEventListener("input", (event) => {
-      applyStripSize(event.target.value);
-    });
+    elements.filmstripResizer.addEventListener("pointerdown", handleResizerPointerDown);
+    elements.filmstripResizer.addEventListener("pointermove", handleResizerPointerMove);
+    elements.filmstripResizer.addEventListener("pointerup", stopResizerInteraction);
+    elements.filmstripResizer.addEventListener("pointercancel", stopResizerInteraction);
     elements.previewMedia.addEventListener("dblclick", () => {
       void toggleFullscreenPreview();
     });
@@ -567,11 +586,13 @@ async function initializeApp() {
       }
       updateFullscreenToggleUi();
     });
+    window.addEventListener("resize", updateResizerOrientation);
+    window.addEventListener("orientationchange", updateResizerOrientation);
     eventsBound = true;
   }
 
   initializeStripSize();
-  initializeFitMode();
+  updateResizerOrientation();
   updateFullscreenToggleUi();
 
   if (!validateConfig()) {

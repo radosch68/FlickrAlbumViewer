@@ -3,26 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="app-html-version" content="2026.03.04.5" />
+    <meta name="app-html-version" content="2026.03.04.6" />
     <title>Flickr Album Viewer</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="top-bar">
-        <div>
+        <div class="title-row">
           <h1 id="album-title">Album Viewer</h1>
           <p id="photo-count">Loading photos...</p>
         </div>
-
-        <label class="strip-size-control" for="strip-size">
-          Filmstrip size
-          <input id="strip-size" type="range" min="92" max="260" step="4" value="132" />
-        </label>
-
-        <button id="fit-mode-toggle" class="fit-mode-btn" type="button" aria-live="polite">
-          Fit: Height
-        </button>
       </header>
 
       <section id="loading-state" class="state-card" aria-live="polite">
@@ -66,13 +57,21 @@
           </div>
         </div>
 
+        <div
+          id="filmstrip-resizer"
+          class="filmstrip-resizer"
+          role="separator"
+          aria-label="Resize filmstrip"
+          aria-orientation="horizontal"
+        ></div>
+
         <div id="filmstrip" class="filmstrip" aria-label="Photo thumbnails"></div>
       </section>
 
       <p id="app-version" class="version-badge" aria-live="polite"></p>
     </main>
 
-    <script src="app-config.js?v=2026.03.04.5"></script>
-    <script src="app.js?v=2026.03.04.5"></script>
+    <script src="app-config.js?v=2026.03.04.6"></script>
+    <script src="app.js?v=2026.03.04.6"></script>
   </body>
 </html>
