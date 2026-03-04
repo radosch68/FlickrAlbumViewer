@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.04.6";
+const JS_VERSION = "2026.03.04.7";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DOUBLE_TAP_MS = 420;
 const DOUBLE_TAP_MOVE_PX = 40;
@@ -56,6 +56,7 @@ let lastTapX = null;
 let lastTapY = null;
 let pseudoFullscreenActive = false;
 let stripResizeActive = false;
+let stripResizeTouchId = null;
 let eventsBound = false;
 
 function renderLoadedVersion() {
@@ -297,6 +298,7 @@ function handleResizerPointerDown(event) {
   }
 
   stripResizeActive = true;
+  document.body.classList.add("resizing-filmstrip");
   elements.filmstripResizer.classList.add("is-active");
   if (typeof elements.filmstripResizer.setPointerCapture === "function") {
     elements.filmstripResizer.setPointerCapture(event.pointerId);
@@ -319,6 +321,8 @@ function stopResizerInteraction(event) {
   }
 
   stripResizeActive = false;
+  stripResizeTouchId = null;
+  document.body.classList.remove("resizing-filmstrip");
   elements.filmstripResizer.classList.remove("is-active");
   if (event && typeof elements.filmstripResizer.releasePointerCapture === "function") {
     try {
@@ -326,6 +330,60 @@ function stopResizerInteraction(event) {
     } catch {
       // Pointer may already be released.
     }
+  }
+}
+
+function getTrackedTouch(touchList) {
+  if (stripResizeTouchId === null) {
+    return null;
+  }
+
+  for (const touch of touchList) {
+    if (touch.identifier === stripResizeTouchId) {
+      return touch;
+    }
+  }
+
+  return null;
+}
+
+function handleResizerTouchStart(event) {
+  const touch = event.changedTouches[0];
+  if (!touch) {
+    return;
+  }
+
+  stripResizeActive = true;
+  stripResizeTouchId = touch.identifier;
+  document.body.classList.add("resizing-filmstrip");
+  elements.filmstripResizer.classList.add("is-active");
+  updateStripSizeFromPointer(touch.clientX, touch.clientY);
+  event.preventDefault();
+}
+
+function handleResizerTouchMove(event) {
+  if (!stripResizeActive) {
+    return;
+  }
+
+  const touch = getTrackedTouch(event.changedTouches) || getTrackedTouch(event.touches);
+  if (!touch) {
+    return;
+  }
+
+  updateStripSizeFromPointer(touch.clientX, touch.clientY);
+  event.preventDefault();
+}
+
+function handleResizerTouchEnd(event) {
+  if (!stripResizeActive) {
+    return;
+  }
+
+  const touch = getTrackedTouch(event.changedTouches);
+  if (touch) {
+    stopResizerInteraction();
+    event.preventDefault();
   }
 }
 
@@ -564,6 +622,12 @@ async function initializeApp() {
     elements.filmstripResizer.addEventListener("pointermove", handleResizerPointerMove);
     elements.filmstripResizer.addEventListener("pointerup", stopResizerInteraction);
     elements.filmstripResizer.addEventListener("pointercancel", stopResizerInteraction);
+    elements.filmstripResizer.addEventListener("touchstart", handleResizerTouchStart, { passive: false });
+    elements.filmstripResizer.addEventListener("touchmove", handleResizerTouchMove, { passive: false });
+    elements.filmstripResizer.addEventListener("touchend", handleResizerTouchEnd, { passive: false });
+    elements.filmstripResizer.addEventListener("touchcancel", () => {
+      stopResizerInteraction();
+    }, { passive: true });
     elements.previewMedia.addEventListener("dblclick", () => {
       void toggleFullscreenPreview();
     });

@@ -179,6 +179,7 @@ body {
   border-bottom: 1px solid #334155;
   position: relative;
   touch-action: none;
+  user-select: none;
   cursor: ns-resize;
 }
 
@@ -266,6 +267,10 @@ body {
   display: none;
 }
 
+body.resizing-filmstrip {
+  overflow: hidden;
+}
+
 body.pseudo-fullscreen {
   background: #000000;
   overflow: hidden;
@@ -336,6 +341,10 @@ body.pseudo-fullscreen .preview-pane {
     padding: 0.25rem;
   }
 
+  .app-shell {
+    --resizer-size: 22px;
+  }
+
   .theatre-view {
     height: calc(100dvh - 1.95rem - env(safe-area-inset-bottom));
     min-height: 350px;
@@ -348,6 +357,11 @@ body.pseudo-fullscreen .preview-pane {
     width: 1.95rem;
     height: 1.95rem;
     font-size: 1.35rem;
+  }
+
+  .filmstrip-resizer::before {
+    width: 56px;
+    height: 5px;
   }
 
   #preview-caption {
