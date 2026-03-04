@@ -173,6 +173,22 @@ body {
   z-index: 3;
 }
 
+.preview-fullscreen-btn {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  border: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.52);
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 4;
+}
+
 .prev-btn {
   left: 0.55rem;
 }
@@ -234,7 +250,8 @@ body {
 .strip-item:focus-visible,
 .preview-nav:focus-visible,
 .btn:focus-visible,
-.fit-mode-btn:focus-visible {
+.fit-mode-btn:focus-visible,
+.preview-fullscreen-btn:focus-visible {
   outline: 3px solid #93c5fd;
   outline-offset: 2px;
 }

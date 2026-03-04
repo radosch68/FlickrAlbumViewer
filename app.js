@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.04.4";
+const JS_VERSION = "2026.03.04.5";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const FIT_MODE_STORAGE_KEY = "flickrPreviewFitMode";
 const DOUBLE_TAP_MS = 420;
@@ -41,6 +41,7 @@ const elements = {
   theatreView: document.getElementById("theatre-view"),
   previewPane: document.getElementById("preview-pane"),
   previewMedia: document.querySelector(".preview-media"),
+  previewFullscreenToggle: document.getElementById("preview-fullscreen-toggle"),
   previewImage: document.getElementById("preview-image"),
   previewCaption: document.getElementById("preview-caption"),
   previewCounter: document.getElementById("preview-counter"),
@@ -422,10 +423,27 @@ function showPrev() {
   setActivePhotoByStep(-1);
 }
 
+function updateFullscreenToggleUi() {
+  if (!elements.previewFullscreenToggle) {
+    return;
+  }
+
+  const nativeFullscreenActive = document.fullscreenElement === elements.previewPane;
+  const fullscreenActive = nativeFullscreenActive || pseudoFullscreenActive;
+
+  elements.previewFullscreenToggle.textContent = fullscreenActive ? "⤡" : "⤢";
+  elements.previewFullscreenToggle.setAttribute(
+    "aria-label",
+    fullscreenActive ? "Exit fullscreen" : "Enter fullscreen"
+  );
+  elements.previewFullscreenToggle.setAttribute("aria-pressed", fullscreenActive ? "true" : "false");
+}
+
 async function toggleFullscreenPreview() {
   if (pseudoFullscreenActive) {
     document.body.classList.remove("pseudo-fullscreen");
     pseudoFullscreenActive = false;
+    updateFullscreenToggleUi();
     return;
   }
 
@@ -435,6 +453,7 @@ async function toggleFullscreenPreview() {
     } catch {
       document.body.classList.remove("pseudo-fullscreen");
       pseudoFullscreenActive = false;
+      updateFullscreenToggleUi();
     }
     return;
   }
@@ -442,6 +461,7 @@ async function toggleFullscreenPreview() {
   if (elements.previewPane?.requestFullscreen && document.fullscreenEnabled) {
     try {
       await elements.previewPane.requestFullscreen();
+      updateFullscreenToggleUi();
       return;
     } catch {
       // Fallback below for browsers like iOS Safari with limited fullscreen support.
@@ -450,6 +470,7 @@ async function toggleFullscreenPreview() {
 
   document.body.classList.add("pseudo-fullscreen");
   pseudoFullscreenActive = true;
+  updateFullscreenToggleUi();
 }
 
 function handleKeyDown(event) {
@@ -518,6 +539,9 @@ async function initializeApp() {
     elements.nextPhoto.addEventListener("click", showNext);
     elements.prevPhoto.addEventListener("click", showPrev);
     elements.fitModeToggle.addEventListener("click", toggleFitMode);
+    elements.previewFullscreenToggle.addEventListener("click", () => {
+      void toggleFullscreenPreview();
+    });
     elements.stripSize.addEventListener("input", (event) => {
       applyStripSize(event.target.value);
     });
@@ -537,11 +561,18 @@ async function initializeApp() {
       touchStartY = null;
       elements.previewPane.classList.remove("is-touching");
     }, { passive: true });
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement) {
+        pseudoFullscreenActive = false;
+      }
+      updateFullscreenToggleUi();
+    });
     eventsBound = true;
   }
 
   initializeStripSize();
   initializeFitMode();
+  updateFullscreenToggleUi();
 
   if (!validateConfig()) {
     return;
