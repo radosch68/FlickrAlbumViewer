@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.04.7";
+const JS_VERSION = "2026.03.04.9";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DOUBLE_TAP_MS = 420;
 const DOUBLE_TAP_MOVE_PX = 40;

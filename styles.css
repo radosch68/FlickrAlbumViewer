@@ -25,22 +25,30 @@ body {
 }
 
 .title-row {
+  position: relative;
   display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 5.5rem;
 }
 
-.top-bar h1 {
+#album-title {
   margin: 0;
   font-size: clamp(1.22rem, 4.1vw, 1.8rem);
   line-height: 1.2;
+  text-align: center;
 }
 
 #photo-count {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   margin: 0;
   color: #4b5563;
   font-size: 0.94rem;
+  white-space: nowrap;
 }
 
 .state-card {
@@ -357,6 +365,10 @@ body.pseudo-fullscreen .preview-pane {
     width: 1.95rem;
     height: 1.95rem;
     font-size: 1.35rem;
+  }
+
+  .title-row {
+    padding: 0 4.8rem;
   }
 
   .filmstrip-resizer::before {
