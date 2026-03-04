@@ -1,9 +1,9 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.04.3";
+const JS_VERSION = "2026.03.04.4";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const FIT_MODE_STORAGE_KEY = "flickrPreviewFitMode";
-const DOUBLE_TAP_MS = 280;
-const DOUBLE_TAP_MOVE_PX = 24;
+const DOUBLE_TAP_MS = 420;
+const DOUBLE_TAP_MOVE_PX = 40;
 const MIN_STRIP_SIZE = 92;
 const MAX_STRIP_SIZE = 260;
 const PHOTO_URL_EXTRAS = [
@@ -56,6 +56,7 @@ let touchStartY = null;
 let lastTapTime = 0;
 let lastTapX = null;
 let lastTapY = null;
+let pseudoFullscreenActive = false;
 let eventsBound = false;
 
 function renderLoadedVersion() {
@@ -422,14 +423,33 @@ function showPrev() {
 }
 
 async function toggleFullscreenPreview() {
-  if (document.fullscreenElement) {
-    await document.exitFullscreen();
+  if (pseudoFullscreenActive) {
+    document.body.classList.remove("pseudo-fullscreen");
+    pseudoFullscreenActive = false;
     return;
   }
 
-  if (elements.previewPane?.requestFullscreen) {
-    await elements.previewPane.requestFullscreen();
+  if (document.fullscreenElement) {
+    try {
+      await document.exitFullscreen();
+    } catch {
+      document.body.classList.remove("pseudo-fullscreen");
+      pseudoFullscreenActive = false;
+    }
+    return;
   }
+
+  if (elements.previewPane?.requestFullscreen && document.fullscreenEnabled) {
+    try {
+      await elements.previewPane.requestFullscreen();
+      return;
+    } catch {
+      // Fallback below for browsers like iOS Safari with limited fullscreen support.
+    }
+  }
+
+  document.body.classList.add("pseudo-fullscreen");
+  pseudoFullscreenActive = true;
 }
 
 function handleKeyDown(event) {
@@ -511,6 +531,11 @@ async function initializeApp() {
     }, { passive: true });
     elements.previewPane.addEventListener("touchend", (event) => {
       void handleTouchEnd(event);
+    }, { passive: true });
+    elements.previewPane.addEventListener("touchcancel", () => {
+      touchStartX = null;
+      touchStartY = null;
+      elements.previewPane.classList.remove("is-touching");
     }, { passive: true });
     eventsBound = true;
   }

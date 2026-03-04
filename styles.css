@@ -249,6 +249,37 @@ body {
   display: none;
 }
 
+body.pseudo-fullscreen {
+  background: #000000;
+  overflow: hidden;
+}
+
+body.pseudo-fullscreen .app-shell {
+  width: 100%;
+  max-width: none;
+  min-height: 100dvh;
+  padding: 0;
+}
+
+body.pseudo-fullscreen .top-bar,
+body.pseudo-fullscreen .filmstrip,
+body.pseudo-fullscreen .version-badge {
+  display: none;
+}
+
+body.pseudo-fullscreen .theatre-view {
+  height: 100dvh;
+  border: none;
+  border-radius: 0;
+  grid-template-rows: minmax(0, 1fr);
+  background: #000000;
+}
+
+body.pseudo-fullscreen .preview-pane {
+  height: 100dvh;
+  background: #000000;
+}
+
 @media (orientation: landscape) {
   .theatre-view {
     grid-template-rows: minmax(0, 1fr);
