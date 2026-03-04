@@ -1,5 +1,9 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.03.1";
+const JS_VERSION = "2026.03.04.2";
+const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
+const FIT_MODE_STORAGE_KEY = "flickrPreviewFitMode";
+const MIN_STRIP_SIZE = 92;
+const MAX_STRIP_SIZE = 260;
 const PHOTO_URL_EXTRAS = [
   "url_q",
   "url_t",
@@ -17,31 +21,33 @@ const PHOTO_URL_EXTRAS = [
 const appState = {
   photos: [],
   albumTitle: "",
-  selectedIndex: -1,
+  selectedIndex: 0,
+  fitMode: "height",
 };
 
 const elements = {
   albumTitle: document.getElementById("album-title"),
   photoCount: document.getElementById("photo-count"),
+  stripSize: document.getElementById("strip-size"),
+  fitModeToggle: document.getElementById("fit-mode-toggle"),
   loadingState: document.getElementById("loading-state"),
   errorState: document.getElementById("error-state"),
   errorMessage: document.getElementById("error-message"),
   retryButton: document.getElementById("retry-button"),
   emptyState: document.getElementById("empty-state"),
-  galleryGrid: document.getElementById("gallery-grid"),
-  lightbox: document.getElementById("lightbox"),
-  lightboxImage: document.getElementById("lightbox-image"),
-  lightboxCaption: document.getElementById("lightbox-caption"),
-  lightboxCounter: document.getElementById("lightbox-counter"),
-  closeLightbox: document.getElementById("close-lightbox"),
+  theatreView: document.getElementById("theatre-view"),
+  previewPane: document.getElementById("preview-pane"),
+  previewImage: document.getElementById("preview-image"),
+  previewCaption: document.getElementById("preview-caption"),
+  previewCounter: document.getElementById("preview-counter"),
   prevPhoto: document.getElementById("prev-photo"),
   nextPhoto: document.getElementById("next-photo"),
-  flickrLink: document.getElementById("lightbox-flickr-link"),
+  flickrLink: document.getElementById("preview-flickr-link"),
+  filmstrip: document.getElementById("filmstrip"),
   appVersion: document.getElementById("app-version"),
 };
 
 let touchStartX = null;
-let previouslyFocusedElement = null;
 let eventsBound = false;
 
 function renderLoadedVersion() {
@@ -179,7 +185,7 @@ async function resolveAlbumByName(albumName) {
 }
 
 function setViewState(state) {
-  const states = [elements.loadingState, elements.errorState, elements.emptyState, elements.galleryGrid];
+  const states = [elements.loadingState, elements.errorState, elements.emptyState, elements.theatreView];
   states.forEach((node) => node.classList.add("hidden"));
 
   if (state === "loading") {
@@ -189,7 +195,7 @@ function setViewState(state) {
   } else if (state === "empty") {
     elements.emptyState.classList.remove("hidden");
   } else {
-    elements.galleryGrid.classList.remove("hidden");
+    elements.theatreView.classList.remove("hidden");
   }
 }
 
@@ -213,7 +219,7 @@ function pickBestUrl(photo, preferredKeys) {
 }
 
 function mapPhoto(photo, ownerNsid) {
-  const thumbUrl = pickBestUrl(photo, ["url_z", "url_n", "url_m", "url_q", "url_s", "url_t"]);
+  const thumbUrl = pickBestUrl(photo, ["url_n", "url_m", "url_q", "url_s", "url_t"]);
   const displayUrl = pickBestUrl(photo, ["url_k", "url_h", "url_o", "url_l", "url_c", "url_z", "url_n", "url_m", "url_q"]);
   const fullUrl = pickBestUrl(photo, ["url_o", "url_k", "url_h", "url_l", "url_c", "url_z", "url_n", "url_m"]);
 
@@ -225,6 +231,71 @@ function mapPhoto(photo, ownerNsid) {
     fullUrl: fullUrl || displayUrl,
     flickrUrl: getPhotoPageUrl(ownerNsid, photo.id),
   };
+}
+
+function normalizeStripSize(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    return 132;
+  }
+  return Math.min(MAX_STRIP_SIZE, Math.max(MIN_STRIP_SIZE, parsed));
+}
+
+function applyStripSize(size, persist = true) {
+  const normalized = normalizeStripSize(size);
+  document.documentElement.style.setProperty("--filmstrip-size", `${normalized}px`);
+
+  if (elements.stripSize) {
+    elements.stripSize.value = String(normalized);
+  }
+
+  if (persist) {
+    localStorage.setItem(STRIP_SIZE_STORAGE_KEY, String(normalized));
+  }
+}
+
+function initializeStripSize() {
+  const saved = localStorage.getItem(STRIP_SIZE_STORAGE_KEY);
+  if (saved) {
+    applyStripSize(saved, false);
+    return;
+  }
+
+  if (elements.stripSize) {
+    applyStripSize(elements.stripSize.value, false);
+  }
+}
+
+function normalizeFitMode(value) {
+  return value === "width" ? "width" : "height";
+}
+
+function applyFitMode(mode, persist = true) {
+  const normalized = normalizeFitMode(mode);
+  appState.fitMode = normalized;
+
+  elements.previewPane.classList.toggle("fit-width", normalized === "width");
+  elements.previewPane.classList.toggle("fit-height", normalized === "height");
+
+  if (elements.fitModeToggle) {
+    const label = normalized === "height" ? "Fit: Height" : "Fit: Width";
+    elements.fitModeToggle.textContent = label;
+    elements.fitModeToggle.setAttribute("aria-label", `${label}. Tap to toggle.`);
+  }
+
+  if (persist) {
+    localStorage.setItem(FIT_MODE_STORAGE_KEY, normalized);
+  }
+}
+
+function initializeFitMode() {
+  const saved = localStorage.getItem(FIT_MODE_STORAGE_KEY);
+  applyFitMode(saved || "height", false);
+}
+
+function toggleFitMode() {
+  const nextMode = appState.fitMode === "height" ? "width" : "height";
+  applyFitMode(nextMode);
 }
 
 async function fetchAlbumPhotos(photosetId) {
@@ -249,14 +320,16 @@ async function fetchAlbumPhotos(photosetId) {
   };
 }
 
-function renderGallery(photos) {
-  elements.galleryGrid.innerHTML = "";
+function renderFilmstrip(photos) {
+  elements.filmstrip.innerHTML = "";
 
   photos.forEach((photo, index) => {
-    const tile = document.createElement("button");
-    tile.className = "photo-tile";
-    tile.type = "button";
-    tile.setAttribute("aria-label", `Open photo ${index + 1}: ${photo.title}`);
+    const item = document.createElement("button");
+    item.className = "strip-item";
+    item.type = "button";
+    item.dataset.index = String(index);
+    item.setAttribute("aria-label", `Show photo ${index + 1}: ${photo.title}`);
+    item.setAttribute("aria-pressed", "false");
 
     const img = document.createElement("img");
     img.src = photo.thumbUrl;
@@ -264,23 +337,23 @@ function renderGallery(photos) {
     img.loading = "lazy";
     img.decoding = "async";
 
-    tile.appendChild(img);
-    tile.addEventListener("click", () => openLightbox(index, tile));
+    item.appendChild(img);
+    item.addEventListener("click", () => selectPhoto(index));
 
-    elements.galleryGrid.appendChild(tile);
+    elements.filmstrip.appendChild(item);
   });
 }
 
-function updateLightbox() {
+function updatePreview() {
   const photo = appState.photos[appState.selectedIndex];
   if (!photo) {
     return;
   }
 
-  elements.lightboxImage.src = photo.displayUrl;
-  elements.lightboxImage.alt = photo.title;
-  elements.lightboxCaption.textContent = photo.title;
-  elements.lightboxCounter.textContent = `${appState.selectedIndex + 1} / ${appState.photos.length}`;
+  elements.previewImage.src = photo.displayUrl;
+  elements.previewImage.alt = photo.title;
+  elements.previewCaption.textContent = photo.title;
+  elements.previewCounter.textContent = `${appState.selectedIndex + 1} / ${appState.photos.length}`;
   elements.flickrLink.href = photo.flickrUrl;
 
   const prevIndex = appState.selectedIndex - 1;
@@ -297,51 +370,54 @@ function updateLightbox() {
   }
 }
 
-function openLightbox(index, triggerElement) {
-  appState.selectedIndex = index;
-  previouslyFocusedElement = triggerElement || document.activeElement;
-  updateLightbox();
-  elements.lightbox.classList.remove("hidden");
-  document.body.classList.add("no-scroll");
-  elements.closeLightbox.focus();
+function updateSelectedStripItem(scrollIntoView = true) {
+  const items = elements.filmstrip.querySelectorAll(".strip-item");
+  items.forEach((item, idx) => {
+    const isActive = idx === appState.selectedIndex;
+    item.classList.toggle("is-active", isActive);
+    item.setAttribute("aria-pressed", isActive ? "true" : "false");
+
+    if (isActive && scrollIntoView) {
+      item.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    }
+  });
 }
 
-function closeLightbox() {
-  elements.lightbox.classList.add("hidden");
-  elements.lightboxImage.src = "";
-  document.body.classList.remove("no-scroll");
-
-  if (previouslyFocusedElement && typeof previouslyFocusedElement.focus === "function") {
-    previouslyFocusedElement.focus();
+function selectPhoto(index, shouldScroll = true) {
+  if (!appState.photos.length) {
+    return;
   }
+
+  const boundedIndex = Math.min(appState.photos.length - 1, Math.max(0, index));
+  appState.selectedIndex = boundedIndex;
+  updatePreview();
+  updateSelectedStripItem(shouldScroll);
+}
+
+function setActivePhotoByStep(step) {
+  if (!appState.photos.length) {
+    return;
+  }
+
+  const next = (appState.selectedIndex + step + appState.photos.length) % appState.photos.length;
+  selectPhoto(next);
 }
 
 function showNext() {
-  if (!appState.photos.length) {
-    return;
-  }
-  appState.selectedIndex = (appState.selectedIndex + 1) % appState.photos.length;
-  updateLightbox();
+  setActivePhotoByStep(1);
 }
 
 function showPrev() {
-  if (!appState.photos.length) {
-    return;
-  }
-  appState.selectedIndex =
-    (appState.selectedIndex - 1 + appState.photos.length) % appState.photos.length;
-  updateLightbox();
+  setActivePhotoByStep(-1);
 }
 
 function handleKeyDown(event) {
-  const lightboxVisible = !elements.lightbox.classList.contains("hidden");
-  if (!lightboxVisible) {
+  const theatreVisible = !elements.theatreView.classList.contains("hidden");
+  if (!theatreVisible) {
     return;
   }
 
-  if (event.key === "Escape") {
-    closeLightbox();
-  } else if (event.key === "ArrowRight") {
+  if (event.key === "ArrowRight") {
     showNext();
   } else if (event.key === "ArrowLeft") {
     showPrev();
@@ -367,6 +443,7 @@ function handleTouchEnd(event) {
   }
 
   touchStartX = null;
+  elements.previewPane.classList.remove("is-touching");
 }
 
 async function initializeApp() {
@@ -374,19 +451,23 @@ async function initializeApp() {
 
   if (!eventsBound) {
     elements.retryButton.addEventListener("click", initializeApp);
-    elements.closeLightbox.addEventListener("click", closeLightbox);
     elements.nextPhoto.addEventListener("click", showNext);
     elements.prevPhoto.addEventListener("click", showPrev);
-    document.addEventListener("keydown", handleKeyDown);
-    elements.lightbox.addEventListener("click", (event) => {
-      if (event.target === elements.lightbox) {
-        closeLightbox();
-      }
+    elements.fitModeToggle.addEventListener("click", toggleFitMode);
+    elements.stripSize.addEventListener("input", (event) => {
+      applyStripSize(event.target.value);
     });
-    elements.lightbox.addEventListener("touchstart", handleTouchStart, { passive: true });
-    elements.lightbox.addEventListener("touchend", handleTouchEnd, { passive: true });
+    document.addEventListener("keydown", handleKeyDown);
+    elements.previewPane.addEventListener("touchstart", (event) => {
+      elements.previewPane.classList.add("is-touching");
+      handleTouchStart(event);
+    }, { passive: true });
+    elements.previewPane.addEventListener("touchend", handleTouchEnd, { passive: true });
     eventsBound = true;
   }
+
+  initializeStripSize();
+  initializeFitMode();
 
   if (!validateConfig()) {
     return;
@@ -419,7 +500,8 @@ async function initializeApp() {
       return;
     }
 
-    renderGallery(appState.photos);
+    renderFilmstrip(appState.photos);
+    selectPhoto(0, false);
     setViewState("gallery");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error loading album.";

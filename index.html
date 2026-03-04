@@ -3,15 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="app-html-version" content="2026.03.03.1" />
+    <meta name="app-html-version" content="2026.03.04.2" />
     <title>Flickr Album Viewer</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="top-bar">
-        <h1 id="album-title">Album Viewer</h1>
-        <p id="photo-count">Loading photos...</p>
+        <div>
+          <h1 id="album-title">Album Viewer</h1>
+          <p id="photo-count">Loading photos...</p>
+        </div>
+
+        <label class="strip-size-control" for="strip-size">
+          Filmstrip size
+          <input id="strip-size" type="range" min="92" max="260" step="4" value="132" />
+        </label>
+
+        <button id="fit-mode-toggle" class="fit-mode-btn" type="button" aria-live="polite">
+          Fit: Height
+        </button>
       </header>
 
       <section id="loading-state" class="state-card" aria-live="polite">
@@ -29,28 +40,30 @@
         <p>This album does not have any publicly available photos.</p>
       </section>
 
-      <section id="gallery-grid" class="gallery-grid hidden" aria-label="Album photos"></section>
+      <section id="theatre-view" class="theatre-view hidden" aria-label="Album viewer">
+        <div id="preview-pane" class="preview-pane">
+          <button id="prev-photo" class="preview-nav prev-btn" type="button" aria-label="Previous photo">‹</button>
+          <div class="preview-media">
+            <img id="preview-image" src="" alt="" />
+          </div>
+          <button id="next-photo" class="preview-nav next-btn" type="button" aria-label="Next photo">›</button>
+
+          <div class="preview-meta">
+            <p id="preview-caption"></p>
+            <div class="preview-actions">
+              <span id="preview-counter"></span>
+              <a id="preview-flickr-link" target="_blank" rel="noopener noreferrer">Open on Flickr</a>
+            </div>
+          </div>
+        </div>
+
+        <div id="filmstrip" class="filmstrip" aria-label="Photo thumbnails"></div>
+      </section>
 
       <p id="app-version" class="version-badge" aria-live="polite"></p>
     </main>
 
-    <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Photo viewer">
-      <button id="close-lightbox" class="icon-btn close-btn" type="button" aria-label="Close photo viewer">✕</button>
-
-      <button id="prev-photo" class="icon-btn nav-btn prev-btn" type="button" aria-label="Previous photo">‹</button>
-      <img id="lightbox-image" src="" alt="" />
-      <button id="next-photo" class="icon-btn nav-btn next-btn" type="button" aria-label="Next photo">›</button>
-
-      <div class="lightbox-meta">
-        <p id="lightbox-caption"></p>
-        <div class="lightbox-actions">
-          <span id="lightbox-counter"></span>
-          <a id="lightbox-flickr-link" target="_blank" rel="noopener noreferrer">Open on Flickr</a>
-        </div>
-      </div>
-    </div>
-
-    <script src="app-config.js?v=2026.03.03.1"></script>
-    <script src="app.js?v=2026.03.03.1"></script>
+    <script src="app-config.js?v=2026.03.04.2"></script>
+    <script src="app.js?v=2026.03.04.2"></script>
   </body>
 </html>

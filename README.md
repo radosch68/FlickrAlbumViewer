@@ -2,12 +2,25 @@
 
 Mobile-friendly static web app for viewing a public Flickr album without Flickr's default album UI friction.
 
+## Viewer experience
+
+- Theatre layout by default: selected photo fills the main area.
+- Filmstrip placement is responsive:
+   - Portrait screens: filmstrip at the bottom.
+   - Landscape screens: filmstrip on the right side.
+- Navigation options:
+   - Arrow keys (left/right)
+   - Swipe left/right on the main preview
+   - On-screen previous/next buttons
+   - Tap/click thumbnails in the filmstrip
+- Filmstrip size is adjustable with the slider in the header; thumbnail size follows automatically.
+
 ## Project files
 
 - `index.html` – app shell
-- `styles.css` – responsive layout and lightbox styles
+- `styles.css` – responsive theatre/filmstrip layout
 - `app-config.js` – Flickr API key + album identifiers
-- `app.js` – Flickr fetch, rendering, and interactions
+- `app.js` – Flickr fetch, rendering, and theatre interactions
 
 ## Configuration
 
