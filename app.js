@@ -1,7 +1,9 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.04.2";
+const JS_VERSION = "2026.03.04.3";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const FIT_MODE_STORAGE_KEY = "flickrPreviewFitMode";
+const DOUBLE_TAP_MS = 280;
+const DOUBLE_TAP_MOVE_PX = 24;
 const MIN_STRIP_SIZE = 92;
 const MAX_STRIP_SIZE = 260;
 const PHOTO_URL_EXTRAS = [
@@ -26,6 +28,7 @@ const appState = {
 };
 
 const elements = {
+  appShell: document.querySelector(".app-shell"),
   albumTitle: document.getElementById("album-title"),
   photoCount: document.getElementById("photo-count"),
   stripSize: document.getElementById("strip-size"),
@@ -37,6 +40,7 @@ const elements = {
   emptyState: document.getElementById("empty-state"),
   theatreView: document.getElementById("theatre-view"),
   previewPane: document.getElementById("preview-pane"),
+  previewMedia: document.querySelector(".preview-media"),
   previewImage: document.getElementById("preview-image"),
   previewCaption: document.getElementById("preview-caption"),
   previewCounter: document.getElementById("preview-counter"),
@@ -48,6 +52,10 @@ const elements = {
 };
 
 let touchStartX = null;
+let touchStartY = null;
+let lastTapTime = 0;
+let lastTapX = null;
+let lastTapY = null;
 let eventsBound = false;
 
 function renderLoadedVersion() {
@@ -243,7 +251,9 @@ function normalizeStripSize(value) {
 
 function applyStripSize(size, persist = true) {
   const normalized = normalizeStripSize(size);
-  document.documentElement.style.setProperty("--filmstrip-size", `${normalized}px`);
+  if (elements.appShell) {
+    elements.appShell.style.setProperty("--filmstrip-size", `${normalized}px`);
+  }
 
   if (elements.stripSize) {
     elements.stripSize.value = String(normalized);
@@ -411,6 +421,17 @@ function showPrev() {
   setActivePhotoByStep(-1);
 }
 
+async function toggleFullscreenPreview() {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+    return;
+  }
+
+  if (elements.previewPane?.requestFullscreen) {
+    await elements.previewPane.requestFullscreen();
+  }
+}
+
 function handleKeyDown(event) {
   const theatreVisible = !elements.theatreView.classList.contains("hidden");
   if (!theatreVisible) {
@@ -426,23 +447,46 @@ function handleKeyDown(event) {
 
 function handleTouchStart(event) {
   touchStartX = event.changedTouches[0].screenX;
+  touchStartY = event.changedTouches[0].screenY;
 }
 
-function handleTouchEnd(event) {
+async function handleTouchEnd(event) {
   if (touchStartX === null) {
     return;
   }
 
-  const deltaX = event.changedTouches[0].screenX - touchStartX;
+  const point = event.changedTouches[0];
+  const deltaX = point.screenX - touchStartX;
+  const deltaY = point.screenY - touchStartY;
   const threshold = 50;
+  const isSwipe = Math.abs(deltaX) > threshold && Math.abs(deltaX) > Math.abs(deltaY);
 
-  if (deltaX > threshold) {
+  if (isSwipe && deltaX > threshold) {
     showPrev();
-  } else if (deltaX < -threshold) {
+  } else if (isSwipe && deltaX < -threshold) {
     showNext();
+  } else {
+    const now = Date.now();
+    const sinceLastTap = now - lastTapTime;
+    const movedSinceLastTap =
+      lastTapX === null || lastTapY === null
+        ? Number.POSITIVE_INFINITY
+        : Math.hypot(point.screenX - lastTapX, point.screenY - lastTapY);
+
+    if (sinceLastTap <= DOUBLE_TAP_MS && movedSinceLastTap <= DOUBLE_TAP_MOVE_PX) {
+      await toggleFullscreenPreview();
+      lastTapTime = 0;
+      lastTapX = null;
+      lastTapY = null;
+    } else {
+      lastTapTime = now;
+      lastTapX = point.screenX;
+      lastTapY = point.screenY;
+    }
   }
 
   touchStartX = null;
+  touchStartY = null;
   elements.previewPane.classList.remove("is-touching");
 }
 
@@ -457,12 +501,17 @@ async function initializeApp() {
     elements.stripSize.addEventListener("input", (event) => {
       applyStripSize(event.target.value);
     });
+    elements.previewMedia.addEventListener("dblclick", () => {
+      void toggleFullscreenPreview();
+    });
     document.addEventListener("keydown", handleKeyDown);
     elements.previewPane.addEventListener("touchstart", (event) => {
       elements.previewPane.classList.add("is-touching");
       handleTouchStart(event);
     }, { passive: true });
-    elements.previewPane.addEventListener("touchend", handleTouchEnd, { passive: true });
+    elements.previewPane.addEventListener("touchend", (event) => {
+      void handleTouchEnd(event);
+    }, { passive: true });
     eventsBound = true;
   }
 
