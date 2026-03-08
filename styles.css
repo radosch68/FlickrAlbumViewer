@@ -93,7 +93,7 @@ body {
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   background: #000000;
 }
 
@@ -113,32 +113,6 @@ body {
   object-fit: contain;
   background: #000000;
   user-select: none;
-}
-
-.preview-meta {
-  color: #e5e7eb;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.28));
-  padding: 0.55rem 0.75rem 0.65rem;
-  z-index: 2;
-}
-
-#preview-caption {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.28;
-}
-
-.preview-actions {
-  margin-top: 0.4rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.8rem;
-  align-items: center;
-  font-size: 0.82rem;
-}
-
-.preview-actions a {
-  color: #dbeafe;
 }
 
 .preview-nav {
@@ -275,40 +249,18 @@ body {
   display: none;
 }
 
-body.resizing-filmstrip {
-  overflow: hidden;
-}
-
-body.pseudo-fullscreen {
-  background: #000000;
-  overflow: hidden;
-}
-
-body.pseudo-fullscreen .app-shell {
-  width: 100%;
-  max-width: none;
-  min-height: 100dvh;
+.app-shell.focus-mode .filmstrip {
   padding: 0;
+  border: 0;
+  overflow: hidden;
 }
 
-body.pseudo-fullscreen .top-bar,
-body.pseudo-fullscreen .filmstrip,
-body.pseudo-fullscreen .filmstrip-resizer,
-body.pseudo-fullscreen .version-badge {
+.app-shell.focus-mode .strip-item {
   display: none;
 }
 
-body.pseudo-fullscreen .theatre-view {
-  height: 100dvh;
-  border: none;
-  border-radius: 0;
-  grid-template-rows: minmax(0, 1fr);
-  background: #000000;
-}
-
-body.pseudo-fullscreen .preview-pane {
-  height: 100dvh;
-  background: #000000;
+body.resizing-filmstrip {
+  overflow: hidden;
 }
 
 @media (orientation: landscape) {
