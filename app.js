@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.04.10";
+const JS_VERSION = "2026.03.08.11";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DOUBLE_TAP_MS = 420;
 const DOUBLE_TAP_MOVE_PX = 40;
@@ -40,11 +40,8 @@ const elements = {
   previewMedia: document.querySelector(".preview-media"),
   previewFullscreenToggle: document.getElementById("preview-fullscreen-toggle"),
   previewImage: document.getElementById("preview-image"),
-  previewCaption: document.getElementById("preview-caption"),
-  previewCounter: document.getElementById("preview-counter"),
   prevPhoto: document.getElementById("prev-photo"),
   nextPhoto: document.getElementById("next-photo"),
-  flickrLink: document.getElementById("preview-flickr-link"),
   filmstrip: document.getElementById("filmstrip"),
   appVersion: document.getElementById("app-version"),
 };
@@ -441,9 +438,7 @@ function updatePreview() {
 
   elements.previewImage.src = photo.displayUrl;
   elements.previewImage.alt = photo.title;
-  elements.previewCaption.textContent = photo.title;
-  elements.previewCounter.textContent = `${appState.selectedIndex + 1} / ${appState.photos.length}`;
-  elements.flickrLink.href = photo.flickrUrl;
+  elements.photoCount.textContent = `${appState.selectedIndex + 1}/${appState.photos.length}`;
 
   const prevIndex = appState.selectedIndex - 1;
   const nextIndex = appState.selectedIndex + 1;
@@ -683,7 +678,7 @@ async function initializeApp() {
     appState.photos = result.photos;
 
     elements.albumTitle.textContent = appState.albumTitle;
-    elements.photoCount.textContent = `${appState.photos.length} photos`;
+    elements.photoCount.textContent = "0/0";
 
     if (!appState.photos.length) {
       setViewState("empty");
