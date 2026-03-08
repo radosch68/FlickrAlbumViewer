@@ -1,10 +1,11 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.08.13";
+const JS_VERSION = "2026.03.08.14";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DEFAULT_STRIP_SIZE = 132;
 const COLLAPSED_STRIP_SIZE = 0;
 const MIN_STRIP_SIZE = 92;
 const MAX_STRIP_SIZE = 260;
+const FOCUS_MODE_THRESHOLD = MIN_STRIP_SIZE / 2;
 const PHOTO_URL_EXTRAS = [
   "url_q",
   "url_t",
@@ -295,12 +296,18 @@ function updateResizerOrientation() {
 }
 
 function updateStripSizeFromPointer(clientX, clientY) {
+  const bounds = elements.theatreView.getBoundingClientRect();
+  const rawSize = isLandscapeOrientation() ? bounds.right - clientX : bounds.bottom - clientY;
+
+  if (rawSize < FOCUS_MODE_THRESHOLD) {
+    setFocusMode(true, false);
+    return;
+  }
+
   if (appState.focusMode) {
     setFocusMode(false, false);
   }
 
-  const bounds = elements.theatreView.getBoundingClientRect();
-  const rawSize = isLandscapeOrientation() ? bounds.right - clientX : bounds.bottom - clientY;
   applyStripSize(rawSize);
 }
 
