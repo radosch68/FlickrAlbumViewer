@@ -1,8 +1,8 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.08.11";
+const JS_VERSION = "2026.03.08.13";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
-const DOUBLE_TAP_MS = 420;
-const DOUBLE_TAP_MOVE_PX = 40;
+const DEFAULT_STRIP_SIZE = 132;
+const COLLAPSED_STRIP_SIZE = 0;
 const MIN_STRIP_SIZE = 92;
 const MAX_STRIP_SIZE = 260;
 const PHOTO_URL_EXTRAS = [
@@ -23,6 +23,8 @@ const appState = {
   photos: [],
   albumTitle: "",
   selectedIndex: 0,
+  focusMode: false,
+  lastExpandedStripSize: DEFAULT_STRIP_SIZE,
 };
 
 const elements = {
@@ -48,10 +50,6 @@ const elements = {
 
 let touchStartX = null;
 let touchStartY = null;
-let lastTapTime = 0;
-let lastTapX = null;
-let lastTapY = null;
-let pseudoFullscreenActive = false;
 let stripResizeActive = false;
 let stripResizeTouchId = null;
 let eventsBound = false;
@@ -242,13 +240,26 @@ function mapPhoto(photo, ownerNsid) {
 function normalizeStripSize(value) {
   const parsed = Number.parseInt(value, 10);
   if (Number.isNaN(parsed)) {
-    return 132;
+    return DEFAULT_STRIP_SIZE;
   }
   return Math.min(MAX_STRIP_SIZE, Math.max(MIN_STRIP_SIZE, parsed));
 }
 
-function applyStripSize(size, persist = true) {
-  const normalized = normalizeStripSize(size);
+function normalizeCollapsedSize(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    return COLLAPSED_STRIP_SIZE;
+  }
+  return Math.min(MAX_STRIP_SIZE, Math.max(COLLAPSED_STRIP_SIZE, parsed));
+}
+
+function applyStripSize(size, persist = true, allowCollapsed = false) {
+  const normalized = allowCollapsed ? normalizeCollapsedSize(size) : normalizeStripSize(size);
+
+  if (normalized > 0) {
+    appState.lastExpandedStripSize = normalized;
+  }
+
   if (elements.appShell) {
     elements.appShell.style.setProperty("--filmstrip-size", `${normalized}px`);
   }
@@ -265,7 +276,7 @@ function initializeStripSize() {
     return;
   }
 
-  applyStripSize(132, false);
+  applyStripSize(DEFAULT_STRIP_SIZE, false);
 }
 
 function isLandscapeOrientation() {
@@ -284,6 +295,10 @@ function updateResizerOrientation() {
 }
 
 function updateStripSizeFromPointer(clientX, clientY) {
+  if (appState.focusMode) {
+    setFocusMode(false, false);
+  }
+
   const bounds = elements.theatreView.getBoundingClientRect();
   const rawSize = isLandscapeOrientation() ? bounds.right - clientX : bounds.bottom - clientY;
   applyStripSize(rawSize);
@@ -461,7 +476,7 @@ function updateSelectedStripItem(scrollIntoView = true) {
     item.classList.toggle("is-active", isActive);
     item.setAttribute("aria-pressed", isActive ? "true" : "false");
 
-    if (isActive && scrollIntoView) {
+    if (isActive && scrollIntoView && !appState.focusMode) {
       item.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
     }
   });
@@ -495,54 +510,39 @@ function showPrev() {
   setActivePhotoByStep(-1);
 }
 
-function updateFullscreenToggleUi() {
+function updateFocusToggleUi() {
   if (!elements.previewFullscreenToggle) {
     return;
   }
 
-  const nativeFullscreenActive = document.fullscreenElement === elements.previewPane;
-  const fullscreenActive = nativeFullscreenActive || pseudoFullscreenActive;
-
-  elements.previewFullscreenToggle.textContent = fullscreenActive ? "⤡" : "⤢";
+  elements.previewFullscreenToggle.textContent = appState.focusMode ? "⤡" : "⤢";
   elements.previewFullscreenToggle.setAttribute(
     "aria-label",
-    fullscreenActive ? "Exit fullscreen" : "Enter fullscreen"
+    appState.focusMode ? "Restore filmstrip" : "Expand photo"
   );
-  elements.previewFullscreenToggle.setAttribute("aria-pressed", fullscreenActive ? "true" : "false");
+  elements.previewFullscreenToggle.setAttribute("title", appState.focusMode ? "Restore filmstrip" : "Expand photo");
+  elements.previewFullscreenToggle.setAttribute("aria-pressed", appState.focusMode ? "true" : "false");
 }
 
-async function toggleFullscreenPreview() {
-  if (pseudoFullscreenActive) {
-    document.body.classList.remove("pseudo-fullscreen");
-    pseudoFullscreenActive = false;
-    updateFullscreenToggleUi();
+function setFocusMode(enabled, restoreSize = true) {
+  if (enabled === appState.focusMode) {
     return;
   }
 
-  if (document.fullscreenElement) {
-    try {
-      await document.exitFullscreen();
-    } catch {
-      document.body.classList.remove("pseudo-fullscreen");
-      pseudoFullscreenActive = false;
-      updateFullscreenToggleUi();
-    }
-    return;
+  appState.focusMode = enabled;
+  elements.appShell.classList.toggle("focus-mode", enabled);
+
+  if (enabled) {
+    applyStripSize(COLLAPSED_STRIP_SIZE, false, true);
+  } else if (restoreSize) {
+    applyStripSize(appState.lastExpandedStripSize || DEFAULT_STRIP_SIZE, false);
   }
 
-  if (elements.previewPane?.requestFullscreen && document.fullscreenEnabled) {
-    try {
-      await elements.previewPane.requestFullscreen();
-      updateFullscreenToggleUi();
-      return;
-    } catch {
-      // Fallback below for browsers like iOS Safari with limited fullscreen support.
-    }
-  }
+  updateFocusToggleUi();
+}
 
-  document.body.classList.add("pseudo-fullscreen");
-  pseudoFullscreenActive = true;
-  updateFullscreenToggleUi();
+function toggleFocusMode() {
+  setFocusMode(!appState.focusMode, true);
 }
 
 function handleKeyDown(event) {
@@ -563,7 +563,7 @@ function handleTouchStart(event) {
   touchStartY = event.changedTouches[0].screenY;
 }
 
-async function handleTouchEnd(event) {
+function handleTouchEnd(event) {
   if (touchStartX === null) {
     return;
   }
@@ -578,24 +578,6 @@ async function handleTouchEnd(event) {
     showPrev();
   } else if (isSwipe && deltaX < -threshold) {
     showNext();
-  } else {
-    const now = Date.now();
-    const sinceLastTap = now - lastTapTime;
-    const movedSinceLastTap =
-      lastTapX === null || lastTapY === null
-        ? Number.POSITIVE_INFINITY
-        : Math.hypot(point.screenX - lastTapX, point.screenY - lastTapY);
-
-    if (sinceLastTap <= DOUBLE_TAP_MS && movedSinceLastTap <= DOUBLE_TAP_MOVE_PX) {
-      await toggleFullscreenPreview();
-      lastTapTime = 0;
-      lastTapX = null;
-      lastTapY = null;
-    } else {
-      lastTapTime = now;
-      lastTapX = point.screenX;
-      lastTapY = point.screenY;
-    }
   }
 
   touchStartX = null;
@@ -611,7 +593,7 @@ async function initializeApp() {
     elements.nextPhoto.addEventListener("click", showNext);
     elements.prevPhoto.addEventListener("click", showPrev);
     elements.previewFullscreenToggle.addEventListener("click", () => {
-      void toggleFullscreenPreview();
+      toggleFocusMode();
     });
     elements.filmstripResizer.addEventListener("pointerdown", handleResizerPointerDown);
     elements.filmstripResizer.addEventListener("pointermove", handleResizerPointerMove);
@@ -623,9 +605,6 @@ async function initializeApp() {
     elements.filmstripResizer.addEventListener("touchcancel", () => {
       stopResizerInteraction();
     }, { passive: true });
-    elements.previewMedia.addEventListener("dblclick", () => {
-      void toggleFullscreenPreview();
-    });
     document.addEventListener("keydown", handleKeyDown);
     elements.previewPane.addEventListener("touchstart", (event) => {
       elements.previewPane.classList.add("is-touching");
@@ -639,12 +618,6 @@ async function initializeApp() {
       touchStartY = null;
       elements.previewPane.classList.remove("is-touching");
     }, { passive: true });
-    document.addEventListener("fullscreenchange", () => {
-      if (!document.fullscreenElement) {
-        pseudoFullscreenActive = false;
-      }
-      updateFullscreenToggleUi();
-    });
     window.addEventListener("resize", updateResizerOrientation);
     window.addEventListener("orientationchange", updateResizerOrientation);
     eventsBound = true;
@@ -652,7 +625,7 @@ async function initializeApp() {
 
   initializeStripSize();
   updateResizerOrientation();
-  updateFullscreenToggleUi();
+  updateFocusToggleUi();
 
   if (!validateConfig()) {
     return;
