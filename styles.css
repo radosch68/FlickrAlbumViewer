@@ -178,7 +178,10 @@ body {
 }
 
 .filmstrip-resizer.is-active::before {
-  background: #cbd5e1;
+  background: #475569;
+  width: 86px;
+  height: 10px;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
 }
 
 .filmstrip {
@@ -263,6 +266,14 @@ body.resizing-filmstrip {
   overflow: hidden;
 }
 
+body.resizing-filmstrip .filmstrip {
+  background: #1f2937;
+}
+
+.filmstrip-resizer.is-active + .filmstrip {
+  background: #1f2937;
+}
+
 @media (orientation: landscape) {
   .theatre-view {
     grid-template-rows: minmax(0, 1fr);
@@ -280,6 +291,11 @@ body.resizing-filmstrip {
   .filmstrip-resizer::before {
     width: 4px;
     height: 44px;
+  }
+
+  .filmstrip-resizer.is-active::before {
+    width: 10px;
+    height: 86px;
   }
 
   .filmstrip {
