@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.09.24";
+const JS_VERSION = "2026.03.09.28";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DEFAULT_STRIP_SIZE = 132;
 const COLLAPSED_STRIP_SIZE = 0;
@@ -539,7 +539,14 @@ function updateFocusToggleUi() {
     return;
   }
 
-  elements.previewFullscreenToggle.textContent = appState.focusMode ? "⤡" : "⤢";
+  // Render paired glyph `<>` as a single element so both chars rotate together
+  // and remain on one line.
+  if (appState.focusMode) {
+    // Use the same -45deg rotation as the enlarge state, but show `><`.
+    elements.previewFullscreenToggle.innerHTML = '<span class="focus-glyph rotated-ccw">&gt;&lt;</span>';
+  } else {
+    elements.previewFullscreenToggle.innerHTML = '<span class="focus-glyph rotated-ccw">&lt;&gt;</span>';
+  }
   elements.previewFullscreenToggle.setAttribute(
     "aria-label",
     appState.focusMode ? "Restore filmstrip" : "Expand photo"
