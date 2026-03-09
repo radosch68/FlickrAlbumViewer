@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.09.24";
+const JS_VERSION = "2026.03.09.26";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DEFAULT_STRIP_SIZE = 132;
 const COLLAPSED_STRIP_SIZE = 0;
@@ -46,6 +46,7 @@ const elements = {
   prevPhoto: document.getElementById("prev-photo"),
   nextPhoto: document.getElementById("next-photo"),
   filmstrip: document.getElementById("filmstrip"),
+  enterFullscreenBtn: null,
   appVersion: document.getElementById("app-version"),
 };
 
@@ -54,6 +55,89 @@ let touchStartY = null;
 let stripResizeActive = false;
 let stripResizeTouchId = null;
 let eventsBound = false;
+let deferredPrompt = null;
+
+function showInstallHint() {
+  if (!elements.enterFullscreenBtn) return;
+  elements.enterFullscreenBtn.textContent = deferredPrompt ? "Install app" : "Fullscreen";
+}
+
+function handleInstallClick() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      showInstallHint();
+    });
+    return;
+  }
+
+  // Try the Fullscreen API first. If it's unavailable or fails (common on iOS),
+  // fall back to the app's focus mode which hides the filmstrip and expands preview.
+  const tryFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement && typeof document.documentElement.requestFullscreen === 'function') {
+        await document.documentElement.requestFullscreen();
+        if (elements.enterFullscreenBtn) elements.enterFullscreenBtn.textContent = 'Exit Fullscreen';
+        return;
+      }
+
+      if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+        await document.exitFullscreen();
+        if (elements.enterFullscreenBtn) elements.enterFullscreenBtn.textContent = 'Fullscreen';
+        return;
+      }
+    } catch (err) {
+      // ignore and fall through to in-app fallback
+    }
+
+    // Fallback: prefer showing platform-appropriate install instructions on iOS,
+    // otherwise use the app's focus mode to simulate fullscreen.
+    if (isIosSafari()) {
+      showA2HSInstructions();
+      return;
+    }
+
+    toggleFocusMode();
+    if (elements.enterFullscreenBtn) {
+      elements.enterFullscreenBtn.textContent = appState.focusMode ? 'Exit Fullscreen' : 'Fullscreen';
+    }
+  };
+
+  void tryFullscreen();
+}
+
+function isIosSafari() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  const isIOS = /iP(hone|od|ad)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+  return isIOS && isSafari;
+}
+
+function showA2HSInstructions() {
+  const existing = document.querySelector('.a2hs-hint');
+  if (existing) {
+    existing.classList.remove('hidden');
+    return;
+  }
+
+  const el = document.createElement('div');
+  el.className = 'a2hs-hint';
+  el.setAttribute('role', 'status');
+  el.innerHTML = `
+    <div class="a2hs-inner">Tap <strong>Share</strong> then <strong>Add to Home Screen</strong> to install this app.</div>
+    <button class="a2hs-close" aria-label="Close">✕</button>
+  `;
+
+  document.body.appendChild(el);
+
+  const closeBtn = el.querySelector('.a2hs-close');
+  const remove = () => { el.classList.add('hidden'); };
+  closeBtn.addEventListener('click', remove);
+  setTimeout(remove, 7000);
+}
+
+// removed A2HS hint helpers (no longer used)
 
 function setResizeVisualCue(active) {
   if (!elements.filmstrip || !elements.filmstripResizer) {
@@ -613,6 +697,20 @@ async function initializeApp() {
   renderLoadedVersion();
 
   if (!eventsBound) {
+    // wire optional install/fullscreen UI
+    elements.enterFullscreenBtn = document.getElementById("enter-fullscreen-btn");
+    if (elements.enterFullscreenBtn) {
+      elements.enterFullscreenBtn.addEventListener("click", handleInstallClick);
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      showInstallHint();
+    });
+
+    // no A2HS hint shown (removed)
+
     elements.retryButton.addEventListener("click", initializeApp);
     elements.nextPhoto.addEventListener("click", showNext);
     elements.prevPhoto.addEventListener("click", showPrev);
