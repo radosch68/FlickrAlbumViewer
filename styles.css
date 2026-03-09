@@ -80,7 +80,7 @@ body {
 
 .theatre-view {
   height: calc(100dvh - 2.2rem - env(safe-area-inset-bottom));
-  min-height: 420px;
+  min-height: 0;
   border-radius: 10px;
   border: 1px solid #0f172a;
   overflow: hidden;
@@ -108,8 +108,10 @@ body {
 
 .preview-pane img {
   display: block;
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
   background: #000000;
   user-select: none;
@@ -323,7 +325,7 @@ body.resizing-filmstrip .filmstrip {
 
   .theatre-view {
     height: calc(100dvh - 1.95rem - env(safe-area-inset-bottom));
-    min-height: 350px;
+    min-height: 0;
     border-radius: 0;
     border-left: none;
     border-right: none;

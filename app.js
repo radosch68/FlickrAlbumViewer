@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.09.23";
+const JS_VERSION = "2026.03.09.24";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DEFAULT_STRIP_SIZE = 132;
 const COLLAPSED_STRIP_SIZE = 0;
