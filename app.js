@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.08.14";
+const JS_VERSION = "2026.03.09.24";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DEFAULT_STRIP_SIZE = 132;
 const COLLAPSED_STRIP_SIZE = 0;
@@ -54,6 +54,20 @@ let touchStartY = null;
 let stripResizeActive = false;
 let stripResizeTouchId = null;
 let eventsBound = false;
+
+function setResizeVisualCue(active) {
+  if (!elements.filmstrip || !elements.filmstripResizer) {
+    return;
+  }
+
+  if (active) {
+    elements.filmstrip.style.background = "#1f2937";
+    elements.filmstripResizer.style.background = "#1f2937";
+  } else {
+    elements.filmstrip.style.background = "";
+    elements.filmstripResizer.style.background = "";
+  }
+}
 
 function renderLoadedVersion() {
   const htmlVersion =
@@ -319,6 +333,7 @@ function handleResizerPointerDown(event) {
   stripResizeActive = true;
   document.body.classList.add("resizing-filmstrip");
   elements.filmstripResizer.classList.add("is-active");
+  setResizeVisualCue(true);
   if (typeof elements.filmstripResizer.setPointerCapture === "function") {
     elements.filmstripResizer.setPointerCapture(event.pointerId);
   }
@@ -343,6 +358,7 @@ function stopResizerInteraction(event) {
   stripResizeTouchId = null;
   document.body.classList.remove("resizing-filmstrip");
   elements.filmstripResizer.classList.remove("is-active");
+  setResizeVisualCue(false);
   if (event && typeof elements.filmstripResizer.releasePointerCapture === "function") {
     try {
       elements.filmstripResizer.releasePointerCapture(event.pointerId);
@@ -376,6 +392,7 @@ function handleResizerTouchStart(event) {
   stripResizeTouchId = touch.identifier;
   document.body.classList.add("resizing-filmstrip");
   elements.filmstripResizer.classList.add("is-active");
+  setResizeVisualCue(true);
   updateStripSizeFromPointer(touch.clientX, touch.clientY);
   event.preventDefault();
 }
