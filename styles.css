@@ -424,10 +424,14 @@ body {
 }
 
 .mobile-compact .compact-album-title {
+  /* match portrait header title exactly */
   margin: 0;
   font-size: clamp(1.22rem, 4.1vw, 1.8rem);
   line-height: 1.2;
   text-align: center;
+  color: inherit;
+  font-weight: 700; /* ensure bold like the H1 portrait title */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .mobile-compact .compact-photo-count {
