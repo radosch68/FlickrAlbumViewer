@@ -211,6 +211,18 @@ body {
   min-height: 0;
 }
 
+/* Micro visual feedback when the filmstrip handle is grabbed */
+.filmstrip.micro-feedback {
+  animation: micro-pop 220ms ease;
+  transform-origin: center;
+}
+
+@keyframes micro-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
 .strip-item {
   flex: 0 0 auto;
   width: calc(var(--filmstrip-size) - 16px);

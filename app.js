@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.09.28";
+const JS_VERSION = "2026.03.09.29";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DEFAULT_STRIP_SIZE = 132;
 const COLLAPSED_STRIP_SIZE = 0;
@@ -67,6 +67,21 @@ function setResizeVisualCue(active) {
     elements.filmstrip.style.background = "";
     elements.filmstripResizer.style.background = "";
   }
+}
+
+let microFeedbackTimer = null;
+function playMicroFeedback() {
+  if (!elements.filmstrip) return;
+  if (microFeedbackTimer) {
+    clearTimeout(microFeedbackTimer);
+    elements.filmstrip.classList.remove('micro-feedback');
+    microFeedbackTimer = null;
+  }
+  elements.filmstrip.classList.add('micro-feedback');
+  microFeedbackTimer = setTimeout(() => {
+    elements.filmstrip.classList.remove('micro-feedback');
+    microFeedbackTimer = null;
+  }, 260);
 }
 
 function renderLoadedVersion() {
@@ -334,6 +349,7 @@ function handleResizerPointerDown(event) {
   document.body.classList.add("resizing-filmstrip");
   elements.filmstripResizer.classList.add("is-active");
   setResizeVisualCue(true);
+  playMicroFeedback();
   if (typeof elements.filmstripResizer.setPointerCapture === "function") {
     elements.filmstripResizer.setPointerCapture(event.pointerId);
   }
@@ -393,6 +409,7 @@ function handleResizerTouchStart(event) {
   document.body.classList.add("resizing-filmstrip");
   elements.filmstripResizer.classList.add("is-active");
   setResizeVisualCue(true);
+  playMicroFeedback();
   updateStripSizeFromPointer(touch.clientX, touch.clientY);
   event.preventDefault();
 }
