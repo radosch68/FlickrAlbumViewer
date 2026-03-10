@@ -1,5 +1,5 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.09.29";
+const JS_VERSION = "2026.03.09.31";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DEFAULT_STRIP_SIZE = 132;
 const COLLAPSED_STRIP_SIZE = 0;
@@ -54,6 +54,11 @@ let touchStartY = null;
 let stripResizeActive = false;
 let stripResizeTouchId = null;
 let eventsBound = false;
+let resizerTouchStartedAt = 0;
+let resizerTouchMoved = false;
+let resizerLastTap = 0;
+let resizerLastTapX = 0;
+let resizerLastTapY = 0;
 
 function setResizeVisualCue(active) {
   if (!elements.filmstrip || !elements.filmstripResizer) {
@@ -362,6 +367,7 @@ function handleResizerPointerMove(event) {
     return;
   }
 
+  // pointer moved -> this is a resize gesture, not a tap
   updateStripSizeFromPointer(event.clientX, event.clientY);
 }
 
@@ -404,6 +410,10 @@ function handleResizerTouchStart(event) {
     return;
   }
 
+  // start tracking this touch to distinguish taps vs. drags
+  resizerTouchStartedAt = Date.now();
+  resizerTouchMoved = false;
+
   stripResizeActive = true;
   stripResizeTouchId = touch.identifier;
   document.body.classList.add("resizing-filmstrip");
@@ -419,6 +429,9 @@ function handleResizerTouchMove(event) {
     return;
   }
 
+  // movement detected -> mark as move so it's not considered a tap
+  resizerTouchMoved = true;
+
   const touch = getTrackedTouch(event.changedTouches) || getTrackedTouch(event.touches);
   if (!touch) {
     return;
@@ -429,15 +442,38 @@ function handleResizerTouchMove(event) {
 }
 
 function handleResizerTouchEnd(event) {
-  if (!stripResizeActive) {
-    return;
+  // Handle quick taps even if stripResizeActive was cleared elsewhere.
+  const touch = getTrackedTouch(event.changedTouches) || event.changedTouches[0];
+  if (!touch) return;
+
+  const now = Date.now();
+  const duration = now - (resizerTouchStartedAt || 0);
+  // Loosen thresholds slightly for mobile
+  const isQuickTap = !resizerTouchMoved && duration < 300;
+
+  if (isQuickTap) {
+    const dx = Math.abs(touch.clientX - (resizerLastTapX || 0));
+    const dy = Math.abs(touch.clientY - (resizerLastTapY || 0));
+    if (resizerLastTap && now - resizerLastTap < 400 && dx < 40 && dy < 40) {
+      // double-tap detected
+      resizerLastTap = 0;
+      stopResizerInteraction();
+      if (appState.focusMode) {
+        toggleFocusMode();
+      }
+      event.preventDefault();
+      return;
+    }
+
+    // record this tap for possible double-tap
+    resizerLastTap = now;
+    resizerLastTapX = touch.clientX;
+    resizerLastTapY = touch.clientY;
   }
 
-  const touch = getTrackedTouch(event.changedTouches);
-  if (touch) {
-    stopResizerInteraction();
-    event.preventDefault();
-  }
+  // always end the interaction
+  stopResizerInteraction();
+  event.preventDefault();
 }
 
 async function fetchAlbumPhotos(photosetId) {
@@ -643,6 +679,13 @@ async function initializeApp() {
     elements.prevPhoto.addEventListener("click", showPrev);
     elements.previewFullscreenToggle.addEventListener("click", () => {
       toggleFocusMode();
+    });
+    // allow double-click with mouse/pointer to toggle focus when only the handle is visible
+    elements.filmstripResizer.addEventListener('dblclick', (e) => {
+      if (appState.focusMode) {
+        toggleFocusMode();
+        e.preventDefault();
+      }
     });
     elements.filmstripResizer.addEventListener("pointerdown", handleResizerPointerDown);
     elements.filmstripResizer.addEventListener("pointermove", handleResizerPointerMove);
