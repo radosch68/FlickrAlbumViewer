@@ -17,6 +17,8 @@ body {
   margin: 0 auto;
   padding: 0.45rem;
   --filmstrip-size: 132px;
+  /* JS will set --app-height to window.innerHeight to avoid mobile address-bar issues */
+  --app-height: 100dvh;
   --resizer-size: 14px;
 }
 
@@ -165,7 +167,7 @@ body {
 }
 
 .theatre-view {
-  height: calc(100dvh - 2.2rem - env(safe-area-inset-bottom));
+  height: calc(var(--app-height) - 2.2rem - env(safe-area-inset-bottom));
   min-height: 0;
   border-radius: 10px;
   border: 1px solid #0f172a;
@@ -370,6 +372,101 @@ body {
   border: 0;
   overflow: hidden;
 }
+
+/* Compact layout for landscape on mobile: hide title + count to maximize viewer height */
+.app-shell.landscape-compact #album-title,
+.app-shell.landscape-compact #photo-count {
+  display: none;
+}
+
+/* hide the albums back button in compact landscape to maximize space */
+.app-shell.landscape-compact .back-btn { display: none; }
+
+/* Collapse header spacing when in compact landscape so the viewer reclaims the space */
+.app-shell.landscape-compact {
+  padding: 0.15rem;
+}
+
+.app-shell.landscape-compact .top-bar {
+  margin-bottom: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.app-shell.landscape-compact .title-row {
+  padding: 0;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* In compact mode don't subtract header height from theatre; use full app-height */
+.app-shell.landscape-compact .theatre-view {
+  height: calc(var(--app-height) - env(safe-area-inset-bottom));
+}
+
+/* Compact header shown above the viewer in landscape. Mirrors main header
+   content but is small and does not change the theatre size. */
+.mobile-compact {
+  display: none;
+  width: 100%;
+  padding: 0.15rem 0;
+  position: relative;
+}
+
+/* mirror portrait header spacing and typography in compact header */
+.mobile-compact .compact-title {
+  padding: 0 5.5rem;
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-compact .compact-album-title {
+  /* match portrait header title exactly */
+  margin: 0;
+  font-size: clamp(1.22rem, 4.1vw, 1.8rem);
+  line-height: 1.2;
+  text-align: center;
+  color: inherit;
+  font-weight: 700; /* ensure bold like the H1 portrait title */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.mobile-compact .compact-photo-count {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.94rem;
+  white-space: nowrap;
+}
+
+.mobile-compact .compact-back {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.app-shell.landscape-compact .mobile-compact {
+  display: block;
+}
+
+/* Spacer that allows a slight page scroll so mobile Safari can hide its chrome.
+   It sits in flow but the theatre is pulled up with a negative margin so the
+   visible photo area is not reduced. */
+#mobile-scroll-spacer { display: none; }
+.app-shell.landscape-compact #mobile-scroll-spacer { display: block; height: 56px; }
+
+/* Pull theatre up to overlap the spacer so header does not reduce photo height */
+.app-shell.landscape-compact .theatre-view { margin-top: -56px; z-index: 0; }
+
+/* Ensure compact header overlays the theatre visually */
+.app-shell.landscape-compact .mobile-compact { position: relative; z-index: 10; background: transparent; }
 
 .app-shell.focus-mode .strip-item {
   display: none;
