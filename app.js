@@ -158,28 +158,64 @@ function getAlbumSelection() {
 }
 
 async function callFlickrApi(method, params = {}) {
-  const endpoint = new URL("https://www.flickr.com/services/rest/");
-  endpoint.searchParams.set("method", method);
-  endpoint.searchParams.set("api_key", config.flickrApiKey);
-  endpoint.searchParams.set("format", "json");
-  endpoint.searchParams.set("nojsoncallback", "1");
+  const maxRetries = Number.isFinite(config.maxRetries) ? config.maxRetries : 3;
+  let attempt = 0;
+  let lastError = null;
 
-  Object.entries(params).forEach(([key, value]) => {
-    endpoint.searchParams.set(key, value);
-  });
+  while (attempt <= maxRetries) {
+    attempt++;
 
-  const response = await fetch(endpoint, { method: "GET" });
-  if (!response.ok) {
-    throw new Error(`Flickr request failed with ${response.status}.`);
+    try {
+      // build endpoint (allow override via `flickrApiBaseUrl` in app-config.js)
+      const base = (config.flickrApiBaseUrl && String(config.flickrApiBaseUrl).trim()) || "https://www.flickr.com/services/rest/";
+
+      const endpoint = new URL(base);
+      endpoint.searchParams.set("method", method);
+      endpoint.searchParams.set("api_key", config.flickrApiKey);
+      endpoint.searchParams.set("format", "json");
+      endpoint.searchParams.set("nojsoncallback", "1");
+
+      Object.entries(params).forEach(([key, value]) => {
+        endpoint.searchParams.set(key, value);
+      });
+
+      // show informative loading message when retrying
+      if (attempt > 1) {
+        setLoadingMessage(`Network error, retrying (${attempt}/${maxRetries})...`);
+      }
+
+      const response = await fetch(endpoint, { method: "GET" });
+      if (!response.ok) {
+        throw new Error(`Flickr request failed with ${response.status}.`);
+      }
+
+      const payload = await response.json();
+      if (payload.stat !== "ok") {
+        const reason = payload.message || "Unknown Flickr API error.";
+        throw new Error(reason);
+      }
+
+      // reset loading message to default when successful
+      setLoadingMessage("Loading album photos...");
+      return payload;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      if (attempt > maxRetries) {
+        break;
+      }
+
+      // exponential backoff with jitter
+      const baseDelay = 500;
+      const backoff = Math.min(8000, baseDelay * Math.pow(2, attempt - 1));
+      const jitter = Math.floor(Math.random() * 300);
+      await new Promise((resolve) => setTimeout(resolve, backoff + jitter));
+      // continue to next attempt
+    }
   }
 
-  const payload = await response.json();
-  if (payload.stat !== "ok") {
-    const reason = payload.message || "Unknown Flickr API error.";
-    throw new Error(reason);
-  }
-
-  return payload;
+  // final failure
+  throw lastError || new Error("Unknown network error.");
 }
 
 function extractPhotosetTitle(photoset) {
@@ -241,6 +277,19 @@ function setViewState(state) {
 function showError(message) {
   elements.errorMessage.textContent = message;
   setViewState("error");
+}
+
+function setLoadingMessage(message) {
+  try {
+    const p = elements.loadingState?.querySelector("p");
+    if (p) {
+      p.textContent = message;
+    } else if (elements.loadingState) {
+      elements.loadingState.textContent = message;
+    }
+  } catch (e) {
+    // ignore
+  }
 }
 
 function getPhotoPageUrl(ownerNsid, photoId) {
@@ -681,6 +730,12 @@ function handleTouchEnd(event) {
 async function initializeApp() {
   renderLoadedVersion();
 
+  // Log effective network config for debugging
+  console.info("[FlickrAlbumViewer] config:", {
+    flickrApiBaseUrl: config.flickrApiBaseUrl || null,
+    maxRetries: config.maxRetries ?? null,
+  });
+
   if (!eventsBound) {
     elements.retryButton.addEventListener("click", initializeApp);
     elements.nextPhoto.addEventListener("click", showNext);
@@ -731,6 +786,7 @@ async function initializeApp() {
     return;
   }
 
+  setLoadingMessage("Loading album photos...");
   setViewState("loading");
 
   try {
