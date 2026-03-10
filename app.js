@@ -126,6 +126,15 @@ function renderBackButtonIfNeeded() {
     });
 
     titleRow.insertBefore(btn, titleRow.firstChild);
+    // also add a compact back button inside the mobile compact header (if present)
+    const compactBack = document.getElementById("back-to-albums-compact");
+    if (compactBack) {
+      compactBack.style.display = "inline-block";
+      compactBack.addEventListener("click", () => {
+        const base = window.location.origin + window.location.pathname.replace(/index\.html$/, "");
+        window.location.href = (base || "./") + "albums/";
+      });
+    }
   } catch (e) {
     // ignore
   }
@@ -609,6 +618,9 @@ function updatePreview() {
   elements.previewImage.src = photo.displayUrl;
   elements.previewImage.alt = photo.title;
   elements.photoCount.textContent = `${appState.selectedIndex + 1}/${appState.photos.length}`;
+  // mirror photo count into compact mobile header if present
+  const mobileCount = document.getElementById("mobile-photo-count");
+  if (mobileCount) mobileCount.textContent = `${appState.selectedIndex + 1}/${appState.photos.length}`;
 
   const prevIndex = appState.selectedIndex - 1;
   const nextIndex = appState.selectedIndex + 1;
@@ -708,8 +720,9 @@ function setAppHeight() {
   }
   if (typeof elements !== "undefined" && elements.appShell) {
     const isLandscape = window.innerWidth > window.innerHeight;
-    const isSmall = window.innerWidth <= 900;
-    elements.appShell.classList.toggle("landscape-compact", isLandscape && isSmall);
+    // apply compact layout for any landscape orientation so the compact
+    // header is visible on phones (and narrower tablets) — avoids missing title.
+    elements.appShell.classList.toggle("landscape-compact", isLandscape);
   }
 }
 
@@ -905,7 +918,12 @@ async function initializeApp() {
     appState.photos = result.photos;
 
     elements.albumTitle.textContent = appState.albumTitle;
+      // mirror album title in compact mobile header if present
+      const mobileTitle = document.getElementById("mobile-album-title");
+      if (mobileTitle) mobileTitle.textContent = appState.albumTitle;
     elements.photoCount.textContent = "0/0";
+      const mobileCountInit = document.getElementById("mobile-photo-count");
+      if (mobileCountInit) mobileCountInit.textContent = "0/0";
 
     if (!appState.photos.length) {
       setViewState("empty");

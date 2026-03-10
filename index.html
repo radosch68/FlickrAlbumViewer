@@ -30,6 +30,16 @@
         <h2>No photos found</h2>
         <p>This album does not have any publicly available photos.</p>
       </section>
+      <!-- Compact header shown above the viewer in landscape to allow a small scroll
+           and provide quick access to album title, photo count, and albums back link. -->
+      <div id="mobile-compact" class="mobile-compact" aria-hidden="true">
+        <button id="back-to-albums-compact" class="back-btn compact-back" type="button" aria-hidden="true" style="display:none">← Albums</button>
+        <div class="compact-title">
+          <div id="mobile-album-title" class="compact-album-title"></div>
+          <div id="mobile-photo-count" class="compact-photo-count"></div>
+        </div>
+      </div>
+      <div id="mobile-scroll-spacer" aria-hidden="true"></div>
 
       <section id="theatre-view" class="theatre-view hidden" aria-label="Album viewer">
         <div id="preview-pane" class="preview-pane">
@@ -65,5 +75,9 @@
 
     <script src="app-config.js?v=0.38"></script>
     <script src="app.js?v=0.38"></script>
-  </body>
+
+    <br/>
+    <br/>
+    <br/>
+</body>
 </html>
