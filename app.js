@@ -542,10 +542,11 @@ function updateFocusToggleUi() {
   // Render paired glyph `<>` as a single element so both chars rotate together
   // and remain on one line.
   if (appState.focusMode) {
-    // Use the same -45deg rotation as the enlarge state, but show `><`.
-    elements.previewFullscreenToggle.innerHTML = '<span class="focus-glyph rotated-ccw">&gt;&lt;</span>';
+    // Use right+left (›‹) rotated 45° CCW for the de-enlarge state.
+    elements.previewFullscreenToggle.innerHTML = '<span class="focus-glyph rotated-ccw">›‹</span>';
   } else {
-    elements.previewFullscreenToggle.innerHTML = '<span class="focus-glyph rotated-ccw">&lt;&gt;</span>';
+    // Use angle-quote pair so left+right are visually balanced: ‹› (U+2039/U+203A)
+    elements.previewFullscreenToggle.innerHTML = '<span class="focus-glyph rotated-ccw">‹›</span>';
   }
   elements.previewFullscreenToggle.setAttribute(
     "aria-label",
