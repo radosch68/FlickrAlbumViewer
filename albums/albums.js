@@ -51,7 +51,7 @@
     return null;
   }
 
-  function renderAlbums(albums) {
+  function renderAlbums(photosets) {
     const container = document.getElementById("albums-list");
     const state = document.getElementById("albums-state");
     if (state) state.classList.add("hidden");
@@ -59,7 +59,7 @@
     container.classList.remove("hidden");
     container.innerHTML = "";
 
-    // render as a thumbnail table: rows of cells containing thumb + title
+    const total = photosets.length;
     const columns = (() => {
       const w = window.innerWidth;
       if (w >= 1200) return 5;
@@ -72,35 +72,24 @@
     table.className = "albums-thumb-table";
     const tbody = document.createElement("tbody");
 
-    for (let i = 0; i < albums.length; i += columns) {
+    // create placeholder cells for all entries so layout is stable
+    const cells = new Array(total);
+    for (let i = 0; i < total; i += columns) {
       const tr = document.createElement("tr");
       for (let c = 0; c < columns; c++) {
         const idx = i + c;
         const td = document.createElement("td");
-        if (idx >= albums.length) {
+        if (idx >= total) {
           td.className = "empty-cell";
           tr.appendChild(td);
           continue;
         }
 
-        const a = albums[idx];
-        const link = document.createElement("a");
-        link.href = `../index.html?albumId=${encodeURIComponent(a.id)}&fromAlbums=1`;
-        link.className = "thumb-cell";
-
-        const img = document.createElement("img");
-        img.src = a.thumb;
-        img.alt = a.title;
-        img.loading = "lazy";
-        img.className = "thumb-image";
-
-        const caption = document.createElement("div");
-        caption.className = "thumb-caption";
-        caption.textContent = a.title;
-
-        link.appendChild(img);
-        link.appendChild(caption);
-        td.appendChild(link);
+        const placeholder = document.createElement("div");
+        placeholder.className = "thumb-placeholder";
+        placeholder.innerHTML = '<div class="thumb-image placeholder"></div><div class="thumb-caption">Loading…</div>';
+        td.appendChild(placeholder);
+        cells[idx] = td;
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
@@ -108,16 +97,10 @@
 
     table.appendChild(tbody);
     container.appendChild(table);
-  }
 
-  async function loadAlbums() {
-    try {
-      setStateMessage("Loading albums...");
-      const listPayload = await fetchWithRetries("flickr.photosets.getList", { user_id: config.userId });
-      const photosets = listPayload.photosets?.photoset || [];
-
-      // Fetch one thumbnail for each album (primary photo) and require it
-      const albumPromises = photosets.map(async (set) => {
+    // start fetching thumbnails and populate cells as they arrive
+    photosets.forEach((set, idx) => {
+      (async () => {
         try {
           const photosPayload = await fetchWithRetries("flickr.photosets.getPhotos", {
             user_id: config.userId,
@@ -128,32 +111,75 @@
 
           const photo = photosPayload.photoset?.photo?.[0] || null;
           const thumb = photo ? pickBestUrl(photo, PHOTO_URL_EXTRAS) : null;
-          if (!thumb) return null; // thumbnail mandatory
+          const td = cells[idx];
+          if (!td) return;
 
-          return {
-            id: set.id,
-            title: typeof set.title === "string" ? set.title : set.title?._content || "Untitled",
-            thumb,
-            count: Number(set.photos) || (photosPayload.photoset?.total ? Number(photosPayload.photoset.total) : 0),
-          };
-        } catch {
-          return null;
+          if (!thumb) {
+            // no thumbnail - clear cell
+            td.innerHTML = "";
+            td.classList.add("empty-cell");
+            return;
+          }
+
+          // build the link content
+          const link = document.createElement("a");
+          link.href = `../index.html?albumId=${encodeURIComponent(set.id)}&fromAlbums=1`;
+          link.className = "thumb-cell";
+          link.setAttribute("aria-label", `Open album ${set.title}`);
+
+          const img = document.createElement("img");
+          img.src = thumb;
+          img.alt = typeof set.title === "string" ? set.title : set.title?._content || "Album";
+          img.loading = "lazy";
+          img.className = "thumb-image";
+
+          const caption = document.createElement("div");
+          caption.className = "thumb-caption";
+          caption.textContent = img.alt;
+
+          link.appendChild(img);
+          link.appendChild(caption);
+
+          td.innerHTML = "";
+          td.appendChild(link);
+        } catch (err) {
+          const td = cells[idx];
+          if (td) {
+            td.innerHTML = "";
+            td.classList.add("empty-cell");
+          }
         }
-      });
+      })();
+    });
+  }
 
-      const albums = (await Promise.all(albumPromises)).filter(Boolean);
-      if (!albums.length) {
-        setStateMessage("No albums with public thumbnails were found.");
+  async function loadAlbums() {
+    try {
+      setStateMessage("Loading albums...");
+      const listPayload = await fetchWithRetries("flickr.photosets.getList", { user_id: config.userId });
+      const photosets = listPayload.photosets?.photoset || [];
+      if (!photosets.length) {
+        setStateMessage("No albums were found for this user.");
         return;
       }
 
-      renderAlbums(albums);
+      // render placeholders and progressively populate thumbnails
+      renderAlbums(photosets);
     } catch (err) {
       setStateMessage(err?.message || "Failed to load albums.");
     }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    // show page version (read from meta tag)
+    try {
+      const htmlVersion = document.querySelector('meta[name="app-html-version"]')?.getAttribute("content") || "unknown";
+      const vEl = document.getElementById("app-version");
+      if (vEl) vEl.textContent = htmlVersion;
+    } catch (e) {
+      // ignore
+    }
+
     loadAlbums();
   });
 })();
