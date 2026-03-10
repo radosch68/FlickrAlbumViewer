@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="app-html-version" content="0.35" />
+    <title>Flickr Albums</title>
+    <link rel="stylesheet" href="../styles.css?v=0.35" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="top-bar">
+        <div class="title-row">
+          <h1 id="albums-title">Albums</h1>
+        </div>
+      </header>
+
+      <section id="albums-state" class="state-card" aria-live="polite">
+        <p id="albums-loading">Loading albums...</p>
+      </section>
+
+      <section id="albums-list" class="albums-container hidden" aria-label="Albums list">
+        <!-- albums will be injected here -->
+      </section>
+    </main>
+
+    <script src="../app-config.js?v=0.35"></script>
+    <script src="albums.js?v=0.1"></script>
+  </body>
+</html>

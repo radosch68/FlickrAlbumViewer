@@ -102,6 +102,35 @@ function renderLoadedVersion() {
   appState.versionDisplayed = true;
 }
 
+function renderBackButtonIfNeeded() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromAlbums = params.get("fromAlbums");
+    if (!fromAlbums) return;
+
+    const titleRow = document.querySelector(".title-row");
+    if (!titleRow) return;
+
+    // avoid adding twice
+    if (document.getElementById("back-to-albums")) return;
+
+    const btn = document.createElement("button");
+    btn.id = "back-to-albums";
+    btn.className = "back-btn";
+    btn.type = "button";
+    btn.textContent = "← Albums";
+    btn.addEventListener("click", () => {
+      // go to the hidden albums listing
+      const base = window.location.origin + window.location.pathname.replace(/index\.html$/, "");
+      window.location.href = (base || "./") + "albums/";
+    });
+
+    titleRow.insertBefore(btn, titleRow.firstChild);
+  } catch (e) {
+    // ignore
+  }
+}
+
 function validateConfig() {
   const requiredKeys = ["flickrApiKey", "userId"];
   const missing = requiredKeys.filter((key) => {
@@ -735,6 +764,8 @@ async function initializeApp() {
     flickrApiBaseUrl: config.flickrApiBaseUrl || null,
     maxRetries: config.maxRetries ?? null,
   });
+
+  renderBackButtonIfNeeded();
 
   if (!eventsBound) {
     elements.retryButton.addEventListener("click", initializeApp);

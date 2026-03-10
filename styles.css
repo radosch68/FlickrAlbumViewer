@@ -33,6 +33,78 @@ body {
   padding: 0 5.5rem;
 }
 
+.back-btn {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #111827;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+.albums-container {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 0.6rem;
+}
+
+.albums-thumb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.albums-thumb-table td {
+  padding: 0.5rem;
+  vertical-align: top;
+  border: none;
+}
+
+.thumb-cell {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.4rem;
+  box-shadow: 0 0 0 1px rgba(15,23,42,0.03) inset;
+}
+
+.thumb-image {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.thumb-cell,
+.thumb-cell:link,
+.thumb-cell:visited,
+.thumb-cell:hover,
+.thumb-cell:active {
+  text-decoration: none;
+  color: #111827;
+}
+
+.thumb-caption {
+  margin-top: 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  color: #111827;
+  text-align: center;
+}
+
+.empty-cell { background: transparent; }
+
+@media (max-width: 640px) {
+  .thumb-image { height: 110px; }
+}
+.muted { color: #6b7280; font-size: 0.9rem; }
+
 #album-title {
   margin: 0;
   font-size: clamp(1.22rem, 4.1vw, 1.8rem);
