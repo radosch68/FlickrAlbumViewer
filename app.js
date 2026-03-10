@@ -1,5 +1,4 @@
 const config = window.APP_CONFIG || {};
-const JS_VERSION = "2026.03.09.31";
 const STRIP_SIZE_STORAGE_KEY = "flickrFilmstripSize";
 const DEFAULT_STRIP_SIZE = 132;
 const COLLAPSED_STRIP_SIZE = 0;
@@ -92,14 +91,15 @@ function playMicroFeedback() {
 function renderLoadedVersion() {
   const htmlVersion =
     document.querySelector('meta[name="app-html-version"]')?.getAttribute("content") || "unknown";
-  const label = `Loaded HTML ${htmlVersion} · JS ${JS_VERSION}`;
+  const label = htmlVersion;
 
   if (elements.appVersion) {
     elements.appVersion.textContent = label;
   }
 
-  window.APP_RUNTIME_VERSION = { html: htmlVersion, js: JS_VERSION };
+  window.APP_RUNTIME_VERSION = { html: htmlVersion };
   console.info("[FlickrAlbumViewer]", window.APP_RUNTIME_VERSION);
+  appState.versionDisplayed = true;
 }
 
 function validateConfig() {
@@ -566,6 +566,14 @@ function selectPhoto(index, shouldScroll = true) {
 
   const boundedIndex = Math.min(appState.photos.length - 1, Math.max(0, index));
   appState.selectedIndex = boundedIndex;
+  // If the version badge is visible, clear it once the user navigates.
+  if (appState.versionDisplayed && shouldScroll) {
+    if (elements.appVersion) {
+      elements.appVersion.textContent = "";
+    }
+    appState.versionDisplayed = false;
+  }
+
   updatePreview();
   updateSelectedStripItem(shouldScroll);
 }
