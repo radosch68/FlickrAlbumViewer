@@ -21,6 +21,7 @@ Mobile-friendly static web app for viewing a public Flickr album without Flickr'
 - `styles.css` – responsive theatre/filmstrip layout
 - `app-config.js` – Flickr API key + album identifiers
 - `app.js` – Flickr fetch, rendering, and theatre interactions
+ - `albums/index.html` + `albums/albums.js` – hidden albums browser (see below)
 
 ## Configuration
 
@@ -29,6 +30,12 @@ Edit `app-config.js` and replace the placeholder values:
 - `flickrApiKey`
 - `userId` (NSID)
 - `defaultAlbumName` (fallback album title when URL parameter is not provided)
+
+New/advanced configuration options (added):
+
+- `flickrApiBaseUrl` (optional) — override the Flickr REST endpoint. Default: `https://www.flickr.com/services/rest/`.
+- `maxRetries` (optional) — number of retry attempts on network/API failures. Default: `3`.
+
 
 You can find your NSID from Flickr URLs/tools:
 - Photo page URLs include owner NSID context.
@@ -59,9 +66,30 @@ Examples:
 
 If `album` is not provided, `defaultAlbumName` from `app-config.js` is used.
 
+Hidden albums browser
+
+- Add `/albums` to the site path to open a hidden, minimal albums browser: `/albums`.
+- The albums page lists public photosets (albums) for the configured `userId`. Each entry shows a thumbnail and title; clicking one redirects to `index.html?albumId=<ID>&fromAlbums=1`.
+- When opened via the albums browser, the viewer shows a back button (left of the album title) to return to `/albums`.
+
+Progressive loading
+
+- The albums page shows placeholder cells immediately and progressively fills thumbnails as the app fetches each album's primary photo. This improves perceived load time for users with many albums.
+
 ## Run locally
 
-Open `index.html` in a browser.
+Start a simple static server from the project root and open the app in a browser (recommended):
+
+```bash
+# from project root
+python3 -m http.server 8000
+```
+
+Open in your browser:
+- Viewer: `http://localhost:8000/index.html` (or `/?albumId=...`)
+- Albums browser: `http://localhost:8000/albums`
+
+When updating config or code, do a hard-refresh (Cmd+Shift+R) to ensure the browser loads the latest assets.
 
 ## Deploy to GitHub Pages
 
@@ -88,3 +116,8 @@ git push -u origin InitialVersion
 
 - This app is designed for **public photos only**.
 - Client-side API key is visible in browser source, which is acceptable for this read-only public use case.
+
+Other notes
+
+- The app exposes a small version badge in the UI (`meta[name="app-html-version"]`) to help confirm which HTML/assets the browser has loaded.
+- Network errors use a small retry/backoff strategy controlled by `maxRetries` in `app-config.js`.
