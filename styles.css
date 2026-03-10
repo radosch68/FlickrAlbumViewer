@@ -103,6 +103,20 @@ body {
 @media (max-width: 640px) {
   .thumb-image { height: 110px; }
 }
+
+/* Placeholder appearance while thumbnails load */
+.thumb-placeholder .thumb-image.placeholder {
+  background: linear-gradient(90deg, #eef2f7 25%, #f3f4f6 50%, #eef2f7 75%);
+  width: 100%;
+  height: 140px;
+  border-radius: 6px;
+}
+
+.thumb-placeholder .thumb-caption {
+  text-align: center;
+  color: #6b7280;
+  margin-top: 0.4rem;
+}
 .muted { color: #6b7280; font-size: 0.9rem; }
 
 #album-title {
