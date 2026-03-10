@@ -17,6 +17,8 @@ body {
   margin: 0 auto;
   padding: 0.45rem;
   --filmstrip-size: 132px;
+  /* JS will set --app-height to window.innerHeight to avoid mobile address-bar issues */
+  --app-height: 100dvh;
   --resizer-size: 14px;
 }
 
@@ -165,7 +167,7 @@ body {
 }
 
 .theatre-view {
-  height: calc(100dvh - 2.2rem - env(safe-area-inset-bottom));
+  height: calc(var(--app-height) - 2.2rem - env(safe-area-inset-bottom));
   min-height: 0;
   border-radius: 10px;
   border: 1px solid #0f172a;
@@ -369,6 +371,38 @@ body {
   padding: 0;
   border: 0;
   overflow: hidden;
+}
+
+/* Compact layout for landscape on mobile: hide title + count to maximize viewer height */
+.app-shell.landscape-compact #album-title,
+.app-shell.landscape-compact #photo-count {
+  display: none;
+}
+
+/* hide the albums back button in compact landscape to maximize space */
+.app-shell.landscape-compact .back-btn { display: none; }
+
+/* Collapse header spacing when in compact landscape so the viewer reclaims the space */
+.app-shell.landscape-compact {
+  padding: 0.15rem;
+}
+
+.app-shell.landscape-compact .top-bar {
+  margin-bottom: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.app-shell.landscape-compact .title-row {
+  padding: 0;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* In compact mode don't subtract header height from theatre; use full app-height */
+.app-shell.landscape-compact .theatre-view {
+  height: calc(var(--app-height) - env(safe-area-inset-bottom));
 }
 
 .app-shell.focus-mode .strip-item {

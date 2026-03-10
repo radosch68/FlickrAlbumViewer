@@ -695,6 +695,59 @@ function updateFocusToggleUi() {
   elements.previewFullscreenToggle.setAttribute("aria-pressed", appState.focusMode ? "true" : "false");
 }
 
+// Set CSS `--app-height` from `window.innerHeight` to avoid mobile chrome
+// shrinking the layout when the browser UI appears/disappears.
+function setAppHeight() {
+  const h = window.innerHeight + "px";
+  // Prefer setting the var on the app shell so the local --app-height
+  // declaration in `.app-shell` doesn't override our runtime value.
+  if (typeof elements !== "undefined" && elements.appShell) {
+    elements.appShell.style.setProperty("--app-height", h);
+  } else {
+    document.documentElement.style.setProperty("--app-height", h);
+  }
+  if (typeof elements !== "undefined" && elements.appShell) {
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const isSmall = window.innerWidth <= 900;
+    elements.appShell.classList.toggle("landscape-compact", isLandscape && isSmall);
+  }
+}
+
+function shouldAutoFullscreen() {
+  return window.innerWidth <= 900 && window.matchMedia && window.matchMedia("(orientation: landscape)").matches;
+}
+
+async function enterFullscreen() {
+  try {
+    const el = elements && elements.theatreView ? elements.theatreView : document.documentElement;
+    if (el.requestFullscreen) {
+      await el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+      await el.webkitRequestFullscreen();
+    }
+  } catch (err) {
+    console.info("[FlickrAlbumViewer] enterFullscreen failed:", err);
+  }
+}
+
+async function exitFullscreen() {
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      await document.webkitExitFullscreen();
+    }
+  } catch (err) {
+    console.info("[FlickrAlbumViewer] exitFullscreen failed:", err);
+  }
+}
+
+document.addEventListener("fullscreenchange", () => {
+  if (typeof elements !== "undefined" && elements.appShell) {
+    elements.appShell.classList.toggle("is-fullscreen", !!document.fullscreenElement);
+  }
+});
+
 function setFocusMode(enabled, restoreSize = true) {
   if (enabled === appState.focusMode) {
     return;
@@ -766,13 +819,24 @@ async function initializeApp() {
   });
 
   renderBackButtonIfNeeded();
+  // ensure initial CSS app-height is set for mobile browsers
+  setAppHeight();
 
   if (!eventsBound) {
     elements.retryButton.addEventListener("click", initializeApp);
     elements.nextPhoto.addEventListener("click", showNext);
     elements.prevPhoto.addEventListener("click", showPrev);
-    elements.previewFullscreenToggle.addEventListener("click", () => {
+    elements.previewFullscreenToggle.addEventListener("click", async () => {
       toggleFocusMode();
+      try {
+        if (appState.focusMode && shouldAutoFullscreen()) {
+          await enterFullscreen();
+        } else if (!appState.focusMode && document.fullscreenElement) {
+          await exitFullscreen();
+        }
+      } catch (err) {
+        console.info("[FlickrAlbumViewer] fullscreen toggle error:", err);
+      }
     });
     // allow double-click with mouse/pointer to toggle focus when only the handle is visible
     elements.filmstripResizer.addEventListener('dblclick', (e) => {
@@ -806,6 +870,9 @@ async function initializeApp() {
     }, { passive: true });
     window.addEventListener("resize", updateResizerOrientation);
     window.addEventListener("orientationchange", updateResizerOrientation);
+    // keep the CSS `--app-height` in sync to mitigate mobile chrome resizing
+    window.addEventListener("resize", setAppHeight);
+    window.addEventListener("orientationchange", () => setTimeout(setAppHeight, 50));
     eventsBound = true;
   }
 
