@@ -18,6 +18,8 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    outputs:
+      share_url: ${{ steps.show_share.outputs.share_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,4 +52,26 @@ jobs:
             git push
           else
             echo 'No generated changes'
+          fi
+
+      - name: Show generated share URL(s)
+        id: show_share
+        run: |
+          # Determine site base (fallback to GitHub Pages path)
+          site_base="${{ secrets.SITE_BASE_URL }}"
+          if [ -z "$site_base" ]; then
+            site_base="https://radosch68.github.io/FlickrAlbumViewer"
+          fi
+          found=0
+          for f in share/album-*.html; do
+            if [ -f "$f" ]; then
+              url="$site_base/${f}"
+              echo "Generated share page: $url"
+              # set step output so job outputs can reference it
+              echo "share_url=$url" >> $GITHUB_OUTPUT
+              found=1
+            fi
+          done
+          if [ "$found" -eq 0 ]; then
+            echo 'No share files found in share/'
           fi
