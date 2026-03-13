@@ -1,9 +1,19 @@
 name: Generate share pages
 
+# Allow the runner to write generated files back to the repo using the
+# automatically provided `GITHUB_TOKEN` when repository settings allow it.
+permissions:
+  contents: write
+
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      albumName:
+        description: 'Album name (optional)'
+        required: false
+        default: ''
 
 jobs:
   generate:
