@@ -18,6 +18,8 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    outputs:
+      share_url: ${{ steps.show_share.outputs.share_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,6 +70,7 @@ jobs:
           fi
 
       - name: Show generated share URL
+        id: show_share
         if: always()
         run: |
           repo_full="$GITHUB_REPOSITORY"
@@ -77,7 +80,9 @@ jobs:
           share_file="${{ steps.detect_share.outputs.share_file }}"
           if [ -n "$share_file" ]; then
             url="$site_base/${share_file}"
-            echo "Generated share page: $url"
+            echo "$url"
+            echo "share_url=$url" >> $GITHUB_OUTPUT
           else
             echo 'No generated share file to show.'
+            echo "share_url=" >> $GITHUB_OUTPUT
           fi
