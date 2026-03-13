@@ -60,21 +60,52 @@ async function resolveAlbumByName(base, apiKey, userId, albumName) {
 }
 
 async function fetchRepresentativePhoto(base, apiKey, userId, photosetId) {
-  const extras = ['url_o','url_k','url_h','url_l','url_c','url_z','url_n','url_m'].join(',');
-  const payload = await fetchJson(buildUrl(base, 'flickr.photosets.getPhotos', apiKey, { user_id: userId, photoset_id: photosetId, per_page: 1, extras }));
+  // Request a range of size urls and their widths/heights so we can pick the best <=1024px
+  const sizeKeys = ['o','k','h','l','b','c','z','n','m'];
+  const extras = [];
+  sizeKeys.forEach((k) => {
+    extras.push(`url_${k}`);
+    extras.push(`width_${k}`);
+    extras.push(`height_${k}`);
+  });
+  const payload = await fetchJson(buildUrl(base, 'flickr.photosets.getPhotos', apiKey, { user_id: userId, photoset_id: photosetId, per_page: 1, extras: extras.join(',') }));
   const photo = payload.photoset?.photo?.[0];
   if (!photo) return null;
-  return photo.url_o || photo.url_k || photo.url_h || photo.url_l || photo.url_c || photo.url_z || photo.url_n || photo.url_m || null;
+
+  // Build candidate list of available sizes
+  const candidates = [];
+  sizeKeys.forEach((k) => {
+    const url = photo[`url_${k}`];
+    const w = photo[`width_${k}`] ? parseInt(photo[`width_${k}`], 10) : null;
+    const h = photo[`height_${k}`] ? parseInt(photo[`height_${k}`], 10) : null;
+    if (url) candidates.push({ key: k, url, width: w, height: h });
+  });
+
+  if (candidates.length === 0) return null;
+
+  // Prefer the largest image with width <= 1024. If none, pick the smallest available.
+  const underOrEqual = candidates.filter((c) => c.width && c.width <= 1024);
+  let chosen;
+  if (underOrEqual.length) {
+    chosen = underOrEqual.reduce((a, b) => ( (a.width || 0) > (b.width || 0) ? a : b ));
+  } else {
+    // Fallback: choose the smallest width available
+    chosen = candidates.reduce((a, b) => ((a.width || Infinity) < (b.width || Infinity) ? a : b));
+  }
+
+  return { url: chosen.url, width: chosen.width || null, height: chosen.height || null };
 }
 
 function slugifyFilename(s) {
   return String(s || '').replace(/[^a-z0-9-_]/gi, '-').replace(/-+/g, '-').toLowerCase();
 }
 
-function renderShareHtml({ title, description, image, url, shareUrl }) {
+function renderShareHtml({ title, description, image, imageWidth, imageHeight, url, shareUrl }) {
   const img = image || 'https://via.placeholder.com/1200x630?text=Album+Preview';
   const desc = description || '';
   const ogUrl = shareUrl || url;
+  const w = imageWidth;
+  const h = imageHeight;
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -86,8 +117,8 @@ function renderShareHtml({ title, description, image, url, shareUrl }) {
     <meta property="og:type" content="article" />
     <meta property="og:url" content="${escapeHtml(ogUrl)}" />
     <meta property="og:image" content="${escapeHtml(img)}" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    ${w ? `<meta property="og:image:width" content="${escapeHtml(String(w))}" />` : ''}
+    ${h ? `<meta property="og:image:height" content="${escapeHtml(String(h))}" />` : ''}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="${escapeHtml(img)}" />
     <meta http-equiv="refresh" content="0; url=${escapeHtml(url)}" />
@@ -131,13 +162,13 @@ async function main() {
       title = resolved.title || title;
     }
 
-    const photoUrl = await fetchRepresentativePhoto(base, apiKey, userId, albumId);
+    const photo = await fetchRepresentativePhoto(base, apiKey, userId, albumId);
     const siteBaseRaw = process.env.SITE_BASE || cfg.siteBase || 'https://radosch68.github.io/FlickrAlbumViewer';
     const siteBase = String(siteBaseRaw).replace(/\/$/, '');
     const shareUrl = `${siteBase}/share/album-${slugifyFilename(albumId)}.html`;
     // Use a relative redirect from the share page into the site root (keeps OG absolute)
     const targetAppUrl = `../?albumId=${encodeURIComponent(albumId)}`;
-    const html = renderShareHtml({ title, description: '', image: photoUrl, url: targetAppUrl, shareUrl });
+    const html = renderShareHtml({ title, description: '', image: photo?.url, imageWidth: photo?.width, imageHeight: photo?.height, url: targetAppUrl, shareUrl });
 
     const outDir = path.resolve(process.cwd(), 'share');
     if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
