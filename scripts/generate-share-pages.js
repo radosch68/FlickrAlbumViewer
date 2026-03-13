@@ -56,11 +56,24 @@ async function resolveAlbumByName(base, apiKey, userId, albumName) {
   const norm = (s) => String(s || '').trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
   const matched = photosets.find((ps) => norm(ps.title?._content || ps.title) === norm(albumName));
   if (!matched) throw new Error('Album not found: ' + albumName);
-  return { id: matched.id, title: matched.title?._content || matched.title };
+  return { id: matched.id, title: matched.title?._content || matched.title, primary: matched.primary };
 }
 
-async function fetchRepresentativePhoto(base, apiKey, userId, photosetId) {
-  // Request a range of size urls and their widths/heights so we can pick the best <=1024px
+async function getPhotosetInfo(base, apiKey, userId, photosetId) {
+  const payload = await fetchJson(buildUrl(base, 'flickr.photosets.getInfo', apiKey, { user_id: userId, photoset_id: photosetId }));
+  const ps = payload.photoset;
+  if (!ps) throw new Error('Photoset not found: ' + photosetId);
+  return { id: ps.id, title: ps.title?._content || ps.title, primary: ps.primary };
+}
+
+async function fetchRepresentativePhoto(base, apiKey, userId, photosetId, primaryPhotoId) {
+  // If we have a primary photo id, prefer fetching sizes for that specific photo.
+  const photoId = primaryPhotoId || null;
+  if (photoId) {
+    return await fetchPhotoById(base, apiKey, photoId);
+  }
+
+  // Fallback: request the first photo in the photoset with many extras
   const sizeKeys = ['o','k','h','l','b','c','z','n','m'];
   const extras = [];
   sizeKeys.forEach((k) => {
@@ -90,6 +103,28 @@ async function fetchRepresentativePhoto(base, apiKey, userId, photosetId) {
     chosen = underOrEqual.reduce((a, b) => ( (a.width || 0) > (b.width || 0) ? a : b ));
   } else {
     // Fallback: choose the smallest width available
+    chosen = candidates.reduce((a, b) => ((a.width || Infinity) < (b.width || Infinity) ? a : b));
+  }
+
+  return { url: chosen.url, width: chosen.width || null, height: chosen.height || null };
+}
+
+async function fetchPhotoById(base, apiKey, photoId) {
+  // Use flickr.photos.getSizes to get canonical sizes for the photo and pick best <=1024
+  const payload = await fetchJson(buildUrl(base, 'flickr.photos.getSizes', apiKey, { photo_id: photoId }));
+  const sizes = payload.sizes?.size || [];
+  if (sizes.length === 0) return null;
+
+  // Map sizes to candidates
+  const candidates = sizes.map((s) => ({ label: s.label, url: s.source, width: s.width ? parseInt(s.width, 10) : null, height: s.height ? parseInt(s.height, 10) : null }));
+
+  // Prefer largest width <=1024
+  const underOrEqual = candidates.filter((c) => c.width && c.width <= 1024);
+  let chosen;
+  if (underOrEqual.length) {
+    chosen = underOrEqual.reduce((a, b) => ((a.width || 0) > (b.width || 0) ? a : b));
+  } else {
+    // Fallback: choose smallest available
     chosen = candidates.reduce((a, b) => ((a.width || Infinity) < (b.width || Infinity) ? a : b));
   }
 
@@ -156,13 +191,20 @@ async function main() {
 
   try {
     let title = albumName || 'Album';
+    let primaryPhotoId = null;
     if (!albumId) {
       const resolved = await resolveAlbumByName(base, apiKey, userId, albumName);
       albumId = resolved.id;
       title = resolved.title || title;
+      primaryPhotoId = resolved.primary || null;
+    } else {
+      // If albumId was provided directly, query the photoset to learn its primary photo
+      const info = await getPhotosetInfo(base, apiKey, userId, albumId);
+      title = info.title || title;
+      primaryPhotoId = info.primary || null;
     }
 
-    const photo = await fetchRepresentativePhoto(base, apiKey, userId, albumId);
+    const photo = await fetchRepresentativePhoto(base, apiKey, userId, albumId, primaryPhotoId);
     const siteBaseRaw = process.env.SITE_BASE || cfg.siteBase || 'https://radosch68.github.io/FlickrAlbumViewer';
     const siteBase = String(siteBaseRaw).replace(/\/$/, '');
     const shareUrl = `${siteBase}/share/album-${slugifyFilename(albumId)}.html`;
