@@ -57,11 +57,11 @@ jobs:
       - name: Show generated share URL(s)
         id: show_share
         run: |
-          # Determine site base (fallback to GitHub Pages path)
-          site_base="${{ secrets.SITE_BASE_URL }}"
-          if [ -z "$site_base" ]; then
-            site_base="https://radosch68.github.io/FlickrAlbumViewer"
-          fi
+          # Compute public GitHub Pages base from repository owner/name to avoid echoing secrets
+          repo_full="$GITHUB_REPOSITORY"
+          owner="${repo_full%%/*}"
+          repo="${repo_full##*/}"
+          site_base="https://${owner}.github.io/${repo}"
           found=0
           for f in share/album-*.html; do
             if [ -f "$f" ]; then
