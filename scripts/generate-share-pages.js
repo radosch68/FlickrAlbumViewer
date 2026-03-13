@@ -71,9 +71,10 @@ function slugifyFilename(s) {
   return String(s || '').replace(/[^a-z0-9-_]/gi, '-').replace(/-+/g, '-').toLowerCase();
 }
 
-function renderShareHtml({ title, description, image, url }) {
+function renderShareHtml({ title, description, image, url, shareUrl }) {
   const img = image || 'https://via.placeholder.com/1200x630?text=Album+Preview';
   const desc = description || '';
+  const ogUrl = shareUrl || url;
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -83,7 +84,7 @@ function renderShareHtml({ title, description, image, url }) {
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(desc)}" />
     <meta property="og:type" content="article" />
-    <meta property="og:url" content="${escapeHtml(url)}" />
+    <meta property="og:url" content="${escapeHtml(ogUrl)}" />
     <meta property="og:image" content="${escapeHtml(img)}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -131,9 +132,12 @@ async function main() {
     }
 
     const photoUrl = await fetchRepresentativePhoto(base, apiKey, userId, albumId);
-    const shareUrl = new URL(path.posix.join('/', 'share', `album-${slugifyFilename(albumId)}.html`), (process.env.SITE_BASE || 'https://example.com')).toString();
-    const targetAppUrl = `/index.html?albumId=${encodeURIComponent(albumId)}`;
-    const html = renderShareHtml({ title, description: '', image: photoUrl, url: targetAppUrl });
+    const siteBaseRaw = process.env.SITE_BASE || cfg.siteBase || 'https://radosch68.github.io/FlickrAlbumViewer';
+    const siteBase = String(siteBaseRaw).replace(/\/$/, '');
+    const shareUrl = `${siteBase}/share/album-${slugifyFilename(albumId)}.html`;
+    // Use a relative redirect from the share page into the site root (keeps OG absolute)
+    const targetAppUrl = `../?albumId=${encodeURIComponent(albumId)}`;
+    const html = renderShareHtml({ title, description: '', image: photoUrl, url: targetAppUrl, shareUrl });
 
     const outDir = path.resolve(process.cwd(), 'share');
     if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
