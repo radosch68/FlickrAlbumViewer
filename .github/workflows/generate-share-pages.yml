@@ -1,0 +1,43 @@
+name: Generate share pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install (no deps required)
+        run: echo 'Using built-in node; no install needed'
+
+      - name: Run generator for default album
+        env:
+          FLICKR_API_KEY: ${{ secrets.FLICKR_API_KEY }}
+          FLICKR_USER_ID: ${{ secrets.FLICKR_USER_ID }}
+          SITE_BASE: ${{ secrets.SITE_BASE_URL }}
+        run: |
+          node scripts/generate-share-pages.js --albumName "${{ github.event.inputs.albumName || '' }}"
+
+      - name: Commit generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add share || true
+          if ! git diff --staged --quiet; then
+            git commit -m "Generate share pages [ci]" || echo 'No changes to commit'
+            git push
+          else
+            echo 'No generated changes'
+          fi
