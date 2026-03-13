@@ -40,6 +40,21 @@ jobs:
         run: |
           node scripts/generate-share-pages.js --albumName "${{ github.event.inputs.albumName || '' }}"
 
+      - name: Detect generated share file
+        id: detect_share
+        run: |
+          # Stage any generated files and detect the album HTML created/modified in this run
+          git add share || true
+          files=$(git diff --staged --name-only --diff-filter=AM | grep '^share/album-.*\.html$' || true)
+          first=$(echo "$files" | head -n1)
+          if [ -n "$first" ]; then
+            echo "Detected generated file: $first"
+            echo "share_file=$first" >> $GITHUB_OUTPUT
+          else
+            echo 'No generated share file detected'
+            echo "share_file=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Commit generated files
         run: |
           git config user.name "github-actions[bot]"
@@ -52,22 +67,17 @@ jobs:
             echo 'No generated changes'
           fi
 
-      - name: Show generated share URL(s)
-        id: show_share
+      - name: Show generated share URL
+        if: always()
         run: |
-          # Compute public GitHub Pages base from repository owner/name to avoid echoing secrets
           repo_full="$GITHUB_REPOSITORY"
           owner="${repo_full%%/*}"
           repo="${repo_full##*/}"
           site_base="https://${owner}.github.io/${repo}"
-          found=0
-          for f in share/album-*.html; do
-            if [ -f "$f" ]; then
-              url="$site_base/${f}"
-              echo "Generated share page: $url"
-              found=1
-            fi
-          done
-          if [ "$found" -eq 0 ]; then
-            echo 'No share files found in share/'
+          share_file="${{ steps.detect_share.outputs.share_file }}"
+          if [ -n "$share_file" ]; then
+            url="$site_base/${share_file}"
+            echo "Generated share page: $url"
+          else
+            echo 'No generated share file to show.'
           fi
