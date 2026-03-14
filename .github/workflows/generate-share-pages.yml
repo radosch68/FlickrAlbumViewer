@@ -91,7 +91,7 @@ jobs:
           share_url="https://radosch68.github.io/FlickrAlbumViewer/${{ steps.show_share.outputs.share_file }}"
           if [ -n "$share_file" ]; then
             echo "### Generated share file" >> $GITHUB_STEP_SUMMARY
-            echo "[share_url]($share_url)" >> $GITHUB_STEP_SUMMARY
+            echo "[$share_url]($share_url)" >> $GITHUB_STEP_SUMMARY
           else
             echo "No generated share file" >> $GITHUB_STEP_SUMMARY
           fi
