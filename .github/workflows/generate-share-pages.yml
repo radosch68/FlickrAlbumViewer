@@ -43,6 +43,12 @@ jobs:
         run: |
           node scripts/generate-share-pages.js --albumName "${{ github.event.inputs.albumName || '' }}"
 
+      - name: Stage generated files
+        if: always()
+        run: |
+          # Ensure generated files are staged for commit
+          git add share || true
+
       - name: Commit generated files
         run: |
           git config user.name "github-actions[bot]"
