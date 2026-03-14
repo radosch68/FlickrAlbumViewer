@@ -217,6 +217,16 @@ async function main() {
     const outPath = path.join(outDir, `album-${slugifyFilename(albumId)}.html`);
     fs.writeFileSync(outPath, html, 'utf8');
     console.log('Wrote', outPath);
+    // Also emit the generated relative filename so CI can pick it up directly.
+    const rel = path.join('share', `album-${slugifyFilename(albumId)}.html`);
+    console.log(`share_file=${rel}`);
+    try {
+      if (process.env.GITHUB_OUTPUT) {
+        fs.appendFileSync(process.env.GITHUB_OUTPUT, `share_file=${rel}\n`);
+      }
+    } catch (e) {
+      // ignore write failures to GITHUB_OUTPUT
+    }
   } catch (err) {
     console.error('Error:', err.message || err);
     process.exit(1);
