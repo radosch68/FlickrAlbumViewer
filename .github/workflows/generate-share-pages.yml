@@ -87,10 +87,10 @@ jobs:
       - name: Add generated filename to job summary
         if: always()
         run: |
-          share_file="${{ steps.generate.outputs.share_file }}"
-          if [ -n "$share_file" ]; then
+          share_url="${{ steps.show_share.outputs.share_url }}"
+          if [ -n "$share_url" ]; then
             echo "### Generated share file" >> $GITHUB_STEP_SUMMARY
-            echo "$share_file" >> $GITHUB_STEP_SUMMARY
+            echo "[$share_url]($share_url)" >> $GITHUB_STEP_SUMMARY
           else
             echo "No generated share file" >> $GITHUB_STEP_SUMMARY
           fi
