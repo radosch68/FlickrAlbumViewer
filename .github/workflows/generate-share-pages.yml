@@ -43,20 +43,25 @@ jobs:
         run: |
           node scripts/generate-share-pages.js --albumName "${{ github.event.inputs.albumName || '' }}"
 
-      - name: Stage generated files
-        if: always()
-        run: |
-          # Ensure generated files are staged for commit
-          git add share || true
+      # staging is handled in the Commit step (git add share)
 
       - name: Commit generated files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add share || true
+          echo "-- git status (before add) --"
+          git status --porcelain --branch || true
+          # Stage all changes (including untracked files)
+          git add -A || true
+          echo "-- git ls-files (added) --"
+          git ls-files --others --exclude-standard --directory || true
+          echo "-- git diff --staged --name-only -- (staged files) --"
+          git diff --staged --name-only || true
           if ! git diff --staged --quiet; then
+            echo "Staged changes detected. Committing..."
             git commit -m "Generate share pages [ci]" || echo 'No changes to commit'
-            git push
+            echo "Pushing changes..."
+            git push || echo 'Push failed'
           else
             echo 'No generated changes'
           fi
