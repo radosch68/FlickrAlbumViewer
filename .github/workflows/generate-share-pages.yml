@@ -4,10 +4,13 @@ name: Generate share pages
 # automatically provided `GITHUB_TOKEN` when repository settings allow it.
 permissions:
   contents: write
+  pages: write
 
 on:
   push:
-    branches: [ main ]
+    branches: [ develop ]
+    paths-ignore:
+      - 'share/**'
   workflow_dispatch:
     inputs:
       albumName:
@@ -15,83 +18,100 @@ on:
         required: false
         default: ''
 
+concurrency:
+  group: generate-share-pages
+  cancel-in-progress: false
+
 jobs:
   generate:
     runs-on: ubuntu-latest
-    outputs:
-      share_url: ${{ steps.show_share.outputs.share_url }}
+    env:
+      SITE_BASE: ${{ vars.SITE_BASE_URL || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: true
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 18
-
-      - name: Install (no deps required)
-        run: echo 'Using built-in node; no install needed'
+          node-version: 24
 
       - name: Run generator for default album
         id: generate
         env:
           FLICKR_API_KEY: ${{ secrets.FLICKR_API_KEY }}
           FLICKR_USER_ID: ${{ secrets.FLICKR_USER_ID }}
-          SITE_BASE: ${{ secrets.SITE_BASE_URL }}
         run: |
           node scripts/generate-share-pages.js --albumName "${{ github.event.inputs.albumName || '' }}"
 
-      # staging is handled in the Commit step (git add share)
-
-      - name: Commit generated files
+      - name: Commit generated file
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          echo "-- git status (before add) --"
-          git status --porcelain --branch || true
-          # Stage all changes (including untracked files)
-          git add -A || true
-          echo "-- git ls-files (added) --"
-          git ls-files --others --exclude-standard --directory || true
-          echo "-- git diff --staged --name-only -- (staged files) --"
-          git diff --staged --name-only || true
+          share_file="${{ steps.generate.outputs.share_file }}"
+          git add -- "$share_file"
           if ! git diff --staged --quiet; then
-            echo "Staged changes detected. Committing..."
-            git commit -m "Generate share pages [ci]" || echo 'No changes to commit'
-            echo "Pushing changes..."
-            git push || echo 'Push failed'
+            git commit -m "Generate share page [ci]"
+            git push
           else
-            echo 'No generated changes'
+            echo 'Generated share page is already up to date.'
           fi
 
-      - name: Show generated share URL
-        id: show_share
-        if: always()
+      - name: Request and verify GitHub Pages build
+        timeout-minutes: 20
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          repo_full="$GITHUB_REPOSITORY"
-          owner="${repo_full%%/*}"
-          repo="${repo_full##*/}"
-          site_base="https://${owner}.github.io/${repo}"
           share_file="${{ steps.generate.outputs.share_file }}"
-          if [ -n "$share_file" ]; then
-            url="$site_base/${share_file}"
-            echo "$url"
-            echo "share_url=$url" >> $GITHUB_OUTPUT
-          else
-            echo 'No generated share file to show.'
-            echo "share_url=" >> $GITHUB_OUTPUT
-          fi
+          share_url="${SITE_BASE%/}/${share_file}"
+          expected_commit="$(git rev-parse HEAD)"
+          api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds"
 
-      - name: Add generated filename to job summary
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$api_url"
+
+          for attempt in {1..90}; do
+            build="$(curl --fail-with-body --silent --show-error \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer ${GH_TOKEN}" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "$api_url/latest")"
+            status="$(jq -r '.status' <<< "$build")"
+            commit="$(jq -r '.commit' <<< "$build")"
+
+            echo "Pages build for ${commit}: ${status}"
+            if [ "$commit" = "$expected_commit" ] && [ "$status" = 'built' ]; then
+              curl --fail --silent --show-error \
+                --retry 12 --retry-delay 5 --retry-all-errors \
+                --header 'Cache-Control: no-cache' \
+                --output /dev/null "${share_url}?build=${expected_commit}"
+              exit 0
+            fi
+            if [ "$commit" = "$expected_commit" ] && [ "$status" = 'errored' ]; then
+              echo 'GitHub Pages build failed.' >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
+          echo 'Timed out waiting for GitHub Pages to publish the generated page.' >&2
+          exit 1
+
+      - name: Add generated URL to job summary
         if: always()
         run: |
           share_file="${{ steps.generate.outputs.share_file }}"
-          share_url="https://radosch68.github.io/FlickrAlbumViewer/${{ steps.show_share.outputs.share_file }}"
+          share_url="${SITE_BASE%/}/${share_file}"
           if [ -n "$share_file" ]; then
-            echo "### Generated share file" >> $GITHUB_STEP_SUMMARY
-            echo "[$share_url]($share_url)" >> $GITHUB_STEP_SUMMARY
+            echo "### Generated share page" >> "$GITHUB_STEP_SUMMARY"
+            echo "[$share_url]($share_url)" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "No generated share file" >> $GITHUB_STEP_SUMMARY
+            echo "No generated share page" >> "$GITHUB_STEP_SUMMARY"
           fi
